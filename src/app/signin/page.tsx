@@ -1,0 +1,233 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAppState } from '../../context/AppState';
+import {
+  Activity,
+  Mail,
+  Lock,
+  Shield,
+  ArrowRight,
+  LogIn,
+  AlertCircle,
+  User,
+  ChevronLeft,
+  Building2,
+  UserPlus
+} from 'lucide-react';
+
+export default function SignInPage() {
+  const { login, currentUser } = useAppState();
+  const router = useRouter();
+  const [mounted, setMounted] = React.useState(false);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => { setMounted(true); }, []);
+  React.useEffect(() => {
+    if (mounted && currentUser) {
+      const url = currentUser.role === 'admin' ? '/admin' : '/employee';
+      // Open dashboard in a new tab
+      window.open(url, '_blank');
+    }
+  }, [mounted, currentUser]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) { setError('Please fill in all fields.'); return; }
+    setError(null);
+    setLoading(true);
+    try {
+      const ok = await login(email, password);
+      if (!ok) setError('Invalid email or password. Please try again.');
+    } catch {
+      setError('An error occurred during authentication.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuick = async (e: string, p: string) => {
+    setError(null);
+    setLoading(true);
+    setEmail(e);
+    setPassword(p);
+    try {
+      const ok = await login(e, p);
+      if (!ok) setError('Demo login failed.');
+    } catch {
+      setError('An error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const demoAdmins = [
+    { label: 'FieldTracker Innovations+ Admin', email: 'admin@fti.com', pass: 'admin123', sub: 'Full analytics, maps & geofence console' }
+  ];
+  const demoStaff = [
+    { name: 'Rahul Sharma',  email: 'rahul@fti.com',  pass: 'rahul123',  role: 'Sales Lead',        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100' },
+    { name: 'Sarah Jenkins', email: 'sarah@fti.com', pass: 'sarah123', role: 'Pharma Specialist',  avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100' },
+    { name: 'Amit Patel',    email: 'amit@fti.com',  pass: 'amit123',  role: 'Delivery Lead',      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100' },
+    { name: 'Carlos Ruiz',   email: 'carlos@fti.com',pass: 'carlos123',role: 'Service Expert',     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100' },
+  ];
+
+  return (
+    <div className="min-h-screen w-full bg-[#0f0a06] flex items-center justify-center p-4 relative overflow-hidden py-10">
+
+      {/* Background glows */}
+      <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] rounded-full bg-amber-600/8 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-yellow-600/8 blur-[100px] pointer-events-none" />
+
+      <div className="w-full max-w-md z-10 space-y-5">
+
+        {/* Back link */}
+        <Link href="/" className="inline-flex items-center gap-1.5 text-[11px] text-stone-500 hover:text-stone-300 transition font-semibold">
+          <ChevronLeft size={13} /> Back to Home
+        </Link>
+
+        {/* Brand */}
+        <div className="text-center space-y-2">
+          <div className="inline-flex bg-amber-600/10 border border-amber-500/25 p-3 rounded-2xl text-amber-400 shadow-xl shadow-amber-600/5">
+            <Activity size={24} className="animate-pulse" />
+          </div>
+          <h1 className="text-xl font-black text-white">Sign In to FieldTracker</h1>
+          <p className="text-[11px] text-stone-500 uppercase tracking-widest font-bold">FieldTracker Innovations+ Operations Portal</p>
+        </div>
+
+        {/* Glass Card */}
+        <div className="bg-stone-950/60 backdrop-blur-xl border border-white/8 rounded-2xl p-7 shadow-2xl space-y-5">
+
+          <div>
+            <h2 className="text-sm font-bold text-stone-100">Portal Authentication</h2>
+            <p className="text-[11px] text-stone-500 mt-0.5">Enter your credentials to access your dashboard or field app.</p>
+          </div>
+
+          {error && (
+            <div className="bg-rose-500/10 border border-rose-500/25 p-3 rounded-xl flex items-start gap-2.5 text-xs text-rose-400">
+              <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-bold">Authentication Refused</p>
+                <p className="text-[11px] opacity-90 mt-0.5">{error}</p>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Email Address</label>
+              <div className="relative">
+                <Mail size={14} className="absolute left-3.5 top-1/2 -transtone-y-1/2 text-stone-500 pointer-events-none" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="name@company.com"
+                  disabled={loading}
+                  autoComplete="username"
+                  className="w-full bg-stone-950/80 border border-white/10 text-stone-200 text-xs pl-10 pr-4 py-3 rounded-xl outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition disabled:opacity-50"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Password</label>
+              <div className="relative">
+                <Lock size={14} className="absolute left-3.5 top-1/2 -transtone-y-1/2 text-stone-500 pointer-events-none" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={loading}
+                  autoComplete="current-password"
+                  className="w-full bg-stone-950/80 border border-white/10 text-stone-200 text-xs pl-10 pr-4 py-3 rounded-xl outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition disabled:opacity-50"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-600/20 active:scale-95 transition disabled:opacity-50 disabled:scale-100 cursor-pointer"
+            >
+              {loading ? (
+                <><span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> Validating...</>
+              ) : (
+                <><LogIn size={13} /> Connect Portal</>
+              )}
+            </button>
+          </form>
+
+          {/* Separator */}
+          <div className="relative flex items-center gap-3">
+            <div className="flex-grow border-t border-white/5" />
+            <span className="text-[10px] text-stone-600 font-bold uppercase tracking-wider flex-shrink-0">Demo Quick Access</span>
+            <div className="flex-grow border-t border-white/5" />
+          </div>
+
+          {/* Admin demo */}
+          {demoAdmins.map(d => (
+            <button
+              key={d.email}
+              type="button"
+              disabled={loading}
+              onClick={() => handleQuick(d.email, d.pass)}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-stone-900/50 hover:bg-stone-900 border border-white/5 hover:border-amber-500/30 transition text-left disabled:opacity-50 cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="bg-amber-500/10 p-2 rounded-lg text-amber-400 border border-amber-500/20">
+                  <Shield size={14} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-stone-200">{d.label}</p>
+                  <p className="text-[10px] text-stone-500 mt-0.5">{d.sub}</p>
+                </div>
+              </div>
+              <span className="text-[9px] bg-stone-800 text-stone-400 px-1.5 py-0.5 rounded font-black uppercase flex-shrink-0">Admin</span>
+            </button>
+          ))}
+
+          {/* Staff demo grid */}
+          <div className="grid grid-cols-2 gap-2">
+            {demoStaff.map(s => (
+              <button
+                key={s.email}
+                type="button"
+                disabled={loading}
+                onClick={() => handleQuick(s.email, s.pass)}
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-stone-900/50 hover:bg-stone-900 border border-white/5 hover:border-emerald-500/30 transition disabled:opacity-50 cursor-pointer text-left"
+              >
+                <img src={s.avatar} alt={s.name} className="w-7 h-7 rounded-full border border-white/10 object-cover flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[10.5px] font-bold text-stone-300 truncate">{s.name}</p>
+                  <p className="text-[9px] text-stone-500 truncate">{s.role}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Redirect links */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-[11px]">
+          <Link href="/signup/organization" target="_blank" className="flex items-center gap-1.5 text-stone-500 hover:text-amber-400 transition font-semibold">
+            <Building2 size={12} /> Register Organization
+          </Link>
+          <span className="hidden sm:block text-stone-700">·</span>
+          <Link href="/signup/staff" target="_blank" className="flex items-center gap-1.5 text-stone-500 hover:text-emerald-400 transition font-semibold">
+            <UserPlus size={12} /> Join as Field Staff
+          </Link>
+        </div>
+
+        <p className="text-center text-[10px] text-stone-600 font-semibold tracking-wide">
+          Secured by FTI Shield GPS Anti-Spoofing Protocols · v3.0.0
+        </p>
+      </div>
+    </div>
+  );
+}

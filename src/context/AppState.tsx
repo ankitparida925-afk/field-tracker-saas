@@ -17,7 +17,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'employee';
+  role: 'superadmin' | 'admin' | 'employee';
   employeeId?: string;
   organizationId?: string;
   organizationName?: string;
@@ -121,7 +121,7 @@ interface AppStateContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   registerEmployee: (name: string, email: string, pass: string, department: string, phone: string, organizationId: string) => Promise<boolean>;
-  registerOrganization: (name: string, email: string, pass: string, phone: string, industry: string) => Promise<boolean>;
+  registerOrganization: (name: string, email: string, pass: string, phone: string, industry: string, subscriptionPlan?: string) => Promise<boolean>;
   isDemoMode: boolean;
   setIsDemoMode: (val: boolean) => void;
   // Simulator triggers
@@ -865,13 +865,14 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     email: string,
     pass: string,
     phone: string,
-    industry: string
+    industry: string,
+    subscriptionPlan: string = 'FREE_TRIAL'
   ): Promise<boolean> => {
     try {
       const res = await fetch('/api/auth/register/org', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ name, email, password: pass, phone, industry }),
+        body:    JSON.stringify({ name, email, password: pass, phone, industry, subscriptionPlan }),
       });
 
       if (res.status === 409) return false; // Email already exists

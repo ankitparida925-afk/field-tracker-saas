@@ -374,7 +374,10 @@ export default function EmployeePage() {
                   <div className="flex items-center gap-2 mt-2 pt-2 border-t border-stone-200">
                     {t.location && (
                       <button 
-                        onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${t.location!.lat},${t.location!.lng}`, '_blank')}
+                        onClick={() => {
+                          const origin = tracking && tracking.status !== 'offline' ? `&origin=${tracking.latitude},${tracking.longitude}` : '';
+                          window.open(`https://www.google.com/maps/dir/?api=1${origin}&destination=${t.location!.lat},${t.location!.lng}`, '_blank');
+                        }}
                         className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition shadow-sm"
                       >
                         <Navigation2 size={12}/> Navigate {distStr && `(${distStr})`}

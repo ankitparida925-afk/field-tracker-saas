@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/auth/register/org
  * ────────────────────────────
  * Registers a new organization. Hashes the password with bcrypt.
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { name, email, password, phone, industry } = body;
+  const { name, email, password, phone, industry, subscriptionPlan } = body;
 
   // Required field check
   if (!name?.trim() || !email?.trim() || !password || !phone?.trim()) {
@@ -49,6 +49,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const orgId       = `org-${Date.now()}`;
   const passwordHash = await bcrypt.hash(password, 12);
 
+  const plan = (subscriptionPlan as any) || 'FREE_TRIAL';
+  let limit = 5;
+  if (plan === 'BASIC') limit = 15;
+  else if (plan === 'PREMIUM') limit = 50;
+  else if (plan === 'ENTERPRISE') limit = 100;
+
   addOrg({
     id:           orgId,
     name:         name.trim(),
@@ -57,6 +63,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     phone:        phone.trim(),
     industry:     industry?.trim() || 'Other',
     createdAt:    new Date(),
+    subscriptionPlan: plan,
+    employeeLimit: limit,
+    status: 'ACTIVE',
   });
 
   // Return lightweight org list for client sync

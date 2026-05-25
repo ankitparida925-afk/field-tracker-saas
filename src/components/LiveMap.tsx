@@ -33,10 +33,20 @@ function meSvg() {
 
 const LiveMap: React.FC = () => {
   const {
-    employees, activeTracking, historyPaths, geofences, visits,
+    employees: allEmployees, activeTracking, historyPaths, geofences: allGeofences, visits: allVisits,
     selectedEmployeeId, setSelectedEmployeeId, addGeofence,
-    tasks, setDraftTaskLocation, draftTaskLocation
+    tasks: allTasks, setDraftTaskLocation, draftTaskLocation,
+    currentUser
   } = useAppState();
+
+  // Tenant-scoped isolation for map markers
+  const isSuper = currentUser?.role === 'superadmin';
+  const orgId = currentUser?.organizationId;
+
+  const employees = allEmployees.filter(e => isSuper || (orgId && e.organizationId === orgId));
+  const geofences = allGeofences.filter(g => isSuper || !g.employeeId || allEmployees.find(e => e.id === g.employeeId)?.organizationId === orgId);
+  const tasks = allTasks.filter(t => isSuper || allEmployees.find(e => e.id === t.employeeId)?.organizationId === orgId);
+  const visits = allVisits.filter(v => isSuper || allEmployees.find(e => e.id === v.employeeId)?.organizationId === orgId);
 
   const containerRef  = useRef<HTMLDivElement>(null);
   const mapRef        = useRef<any>(null);
@@ -94,7 +104,7 @@ const LiveMap: React.FC = () => {
         .leaflet-popup-content-wrapper{background:rgba(9,13,22,0.97);border:1px solid rgba(255,255,255,0.12);border-radius:12px;color:#f1f5f9;box-shadow:0 8px 32px rgba(0,0,0,0.7)}
         .leaflet-popup-tip{background:rgba(9,13,22,0.97)}
         .leaflet-popup-close-button{color:#94a3b8!important}
-        .leaflet-marker-icon{border:none!important;background:transparent!important}
+        .leaflet-marker-icon{border:none!important;background:transparent!important;transition:transform 1.2s cubic-bezier(0.25, 1, 0.5, 1) !important;}
         .leaflet-marker-shadow{display:none!important}
       `;
       document.head.appendChild(style);
@@ -118,12 +128,12 @@ const LiveMap: React.FC = () => {
 
       const dark = L.tileLayer(
         'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        { subdomains: 'abcd', maxZoom: 20 }
+        { subdomains: 'abcd', maxZoom: 20, keepBuffer: 4, updateWhenIdle: false }
       ).addTo(map);
 
       const sat = L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19 }
+        { maxZoom: 19, keepBuffer: 4, updateWhenIdle: false }
       );
 
       (map as any)._darkLayer = dark;
@@ -240,7 +250,8 @@ const LiveMap: React.FC = () => {
         markersRef.current[emp.id].setPopupContent(popup);
       }
 
-      // Route trail
+      // Route trail (history path line has been removed to satisfy user visual preferences)
+      /*
       const pts = (historyPaths[emp.id] || []).map((p: any) => [p.latitude, p.longitude] as [number, number]);
       if (pts.length > 1) {
         if (!routesRef.current[emp.id]) {
@@ -249,16 +260,21 @@ const LiveMap: React.FC = () => {
           routesRef.current[emp.id].setLatLngs(pts);
         }
       }
+      */
     });
 
-    // Pan to selected employee
-    if (selectedEmployeeId) {
+    // Pan to selected employee (disabled in taskDropMode, drawMode, or when a draftTaskLocation is set, to prevent camera snaps away from user)
+    if (selectedEmployeeId && !taskDropMode && !drawMode && !draftTaskLocation) {
       const t = activeTracking[selectedEmployeeId];
       if (t && t.status !== 'offline' && mapRef.current) {
-        mapRef.current.setView([t.latitude, t.longitude], mapRef.current.getZoom(), { animate: true });
+        mapRef.current.panTo([t.latitude, t.longitude], {
+          animate: true,
+          duration: 1.2,
+          easeLinearity: 0.15
+        });
       }
     }
-  }, [activeTracking, historyPaths, selectedEmployeeId, employees, ready, setSelectedEmployeeId]);
+  }, [activeTracking, historyPaths, selectedEmployeeId, employees, ready, setSelectedEmployeeId, taskDropMode, drawMode, draftTaskLocation]);
 
   /* ── 6. Geofence circles ─────────────────────────────────────────────── */
   useEffect(() => {

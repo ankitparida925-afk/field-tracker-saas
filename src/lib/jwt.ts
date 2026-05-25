@@ -23,7 +23,7 @@ const REFRESH_SECRET = new TextEncoder().encode(
 export interface TokenPayload extends JWTPayload {
   userId:         string;
   email:          string;
-  role:           'admin' | 'employee';
+  role:           'superadmin' | 'admin' | 'employee';
   organizationId: string;
   employeeId?:    string;
   tokenType:      'access' | 'refresh';

@@ -19,6 +19,7 @@ import {
   getOrgByEmail,
   getEmployeeByEmail,
   getOrgById,
+  getSuperAdminByEmail,
   checkRateLimit,
 } from '@/lib/store';
 
@@ -53,11 +54,60 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
   }
 
+  // ── Check Super Admin credentials ─────────────────────────────────────────
+  const superAdmin = getSuperAdminByEmail(email);
+  if (superAdmin) {
+    const passwordMatch = await bcrypt.compare(password, superAdmin.passwordHash);
+    if (passwordMatch) {
+      const tokenPayload = {
+        userId:         superAdmin.id,
+        email:          superAdmin.email,
+        role:           'superadmin' as const,
+        organizationId: 'platform',
+      };
+
+      const [accessToken, refreshToken] = await Promise.all([
+        signAccessToken(tokenPayload),
+        signRefreshToken(tokenPayload),
+      ]);
+
+      const res = NextResponse.json({
+        accessToken,
+        user: {
+          id:               tokenPayload.userId,
+          name:             superAdmin.name,
+          email:            superAdmin.email,
+          role:             'superadmin',
+          organizationId:   'platform',
+          organizationName: 'FieldTracker Platform',
+        },
+      });
+
+      res.cookies.set('fti_refresh_token', refreshToken, {
+        httpOnly: true,
+        secure:   process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path:     '/',
+        maxAge:   60 * 60 * 24 * 7, // 7 days
+      });
+
+      return res;
+    }
+  }
+
   // ── Check Organization Admin credentials ──────────────────────────────────
   const org = getOrgByEmail(email);
   if (org) {
     const passwordMatch = await bcrypt.compare(password, org.passwordHash);
     if (passwordMatch) {
+      // Security Check: Is the tenant suspended?
+      if (org.status === 'SUSPENDED') {
+        return NextResponse.json(
+          { error: 'Your organization has been suspended by the platform Super Admin. Please contact billing/support.' },
+          { status: 403 }
+        );
+      }
+
       const tokenPayload = {
         userId:         `admin-${org.id}`,
         email:          org.adminEmail,
@@ -101,6 +151,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const passwordMatch = await bcrypt.compare(password, employee.passwordHash);
     if (passwordMatch) {
       const employeeOrg = getOrgById(employee.organizationId);
+
+      // Security Check: Is the tenant suspended?
+      if (employeeOrg && employeeOrg.status === 'SUSPENDED') {
+        return NextResponse.json(
+          { error: 'Your organization has been suspended by the platform Super Admin. Access is temporarily revoked.' },
+          { status: 403 }
+        );
+      }
+
       const tokenPayload = {
         userId:         `user-${employee.id}`,
         email:          employee.email,

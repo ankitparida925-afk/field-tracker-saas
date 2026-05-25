@@ -31,7 +31,12 @@ export default function SignInPage() {
   React.useEffect(() => { setMounted(true); }, []);
   React.useEffect(() => {
     if (mounted && currentUser) {
-      const url = currentUser.role === 'admin' ? '/admin' : '/employee';
+      let url = '/employee';
+      if (currentUser.role === 'superadmin') {
+        url = '/superadmin';
+      } else if (currentUser.role === 'admin') {
+        url = '/admin';
+      }
       // Open dashboard in a new tab
       window.open(url, '_blank');
     }
@@ -68,6 +73,7 @@ export default function SignInPage() {
   };
 
   const demoAdmins = [
+    { label: 'Super Admin Portal', email: 'superadmin@fieldtracker.com', pass: 'superadmin123', sub: 'Global SaaS Control, Multitenant Map & Subscriptions' },
     { label: 'FieldTracker Innovations+ Admin', email: 'admin@fti.com', pass: 'admin123', sub: 'Full analytics, maps & geofence console' }
   ];
   const demoStaff = [

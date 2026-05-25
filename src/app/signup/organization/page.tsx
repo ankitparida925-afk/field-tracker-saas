@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -34,6 +34,7 @@ export default function OrganizationSignUpPage() {
   const [orgConfirmPass, setOrgConfirmPass] = useState('');
   const [orgPhone, setOrgPhone] = useState('');
   const [orgIndustry, setOrgIndustry] = useState('Software & Telemetry');
+  const [orgPlan, setOrgPlan] = useState<'FREE_TRIAL' | 'BASIC' | 'PREMIUM' | 'ENTERPRISE'>('FREE_TRIAL');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,7 +61,7 @@ export default function OrganizationSignUpPage() {
     setError(null);
     setLoading(true);
     try {
-      const ok = await registerOrganization(orgName.trim(), orgEmail.trim().toLowerCase(), orgPassword, orgPhone.trim(), orgIndustry);
+      const ok = await registerOrganization(orgName.trim(), orgEmail.trim().toLowerCase(), orgPassword, orgPhone.trim(), orgIndustry, orgPlan);
       if (ok) {
         setSuccess(`"${orgName}" workspace created! You can now sign in as Admin.`);
         setTimeout(() => router.push('/signin'), 2500);
@@ -266,6 +267,21 @@ export default function OrganizationSignUpPage() {
                   {industries.map(ind => (
                     <option key={ind} value={ind} className="bg-stone-900 text-stone-200">{ind}</option>
                   ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Membership Plan Selection */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Choose Membership Plan *</label>
+              <div className="relative">
+                <Shield size={14} className="absolute left-3.5 top-1/2 -transtone-y-1/2 text-stone-500 pointer-events-none" />
+                <select value={orgPlan} onChange={e => setOrgPlan(e.target.value as any)} disabled={loading}
+                  className="w-full bg-stone-950/80 border border-white/10 text-stone-300 text-xs pl-10 pr-4 py-3 rounded-xl outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition cursor-pointer disabled:opacity-50">
+                  <option value="FREE_TRIAL" className="bg-stone-900 text-stone-200">Free Trial Plan (Max 5 Employees)</option>
+                  <option value="BASIC" className="bg-stone-900 text-stone-200">Basic Plan - $49/mo (Max 15 Employees)</option>
+                  <option value="PREMIUM" className="bg-stone-900 text-stone-200">Premium Plan - $99/mo (Max 50 Employees)</option>
+                  <option value="ENTERPRISE" className="bg-stone-900 text-stone-200">Enterprise Plan - $249/mo (Max 100 Employees)</option>
                 </select>
               </div>
             </div>

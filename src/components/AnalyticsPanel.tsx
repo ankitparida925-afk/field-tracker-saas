@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppState } from '../context/AppState';
 import { generateRouteInsights } from '../utils/aiEngine';
 import { RouteOptimizer } from './RouteOptimizer';
@@ -63,6 +63,13 @@ export const AnalyticsPanel: React.FC = () => {
   );
   // ────────────────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'employees' | 'attendance' | 'visits' | 'tasks' | 'geofences' | 'alerts' | 'reports' | 'routes' | 'heatmap'>('employees');
+
+  // Automatically switch to 'tasks' tab if a task location is drafted!
+  useEffect(() => {
+    if (draftTaskLocation) {
+      setActiveTab('tasks');
+    }
+  }, [draftTaskLocation]);
   // Task Assign Form State
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');

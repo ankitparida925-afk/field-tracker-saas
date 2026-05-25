@@ -35,7 +35,7 @@ const LiveMap: React.FC = () => {
   const {
     employees, activeTracking, historyPaths, geofences, visits,
     selectedEmployeeId, setSelectedEmployeeId, addGeofence,
-    tasks, setDraftTaskLocation
+    tasks, setDraftTaskLocation, draftTaskLocation
   } = useAppState();
 
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -45,6 +45,7 @@ const LiveMap: React.FC = () => {
   const routesRef     = useRef<Record<string, any>>({});
   const gfLayersRef   = useRef<Record<string, any>>({});
   const meMarkerRef   = useRef<any>(null);
+  const draftMarkerRef = useRef<any>(null);
   const watchRef      = useRef<number | null>(null);
   const hasFitRef     = useRef(false);
   const gfTypeRef     = useRef<'client'|'territory'|'restricted'>('client');
@@ -407,6 +408,32 @@ const LiveMap: React.FC = () => {
       }
     }
   }, [mapMode, ready, historyPaths, visits]);
+
+  /* ── 9. Draft Task Location Marker ───────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current; const L = LRef.current;
+    if (!map || !L || !ready) return;
+
+    if (!draftTaskLocation) {
+      if (draftMarkerRef.current) {
+        map.removeLayer(draftMarkerRef.current);
+        draftMarkerRef.current = null;
+      }
+      return;
+    }
+
+    const iconHtml = `<div class="animate-bounce" style="background:#ea580c;color:white;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(234,88,12,0.6);border:2.5px solid #fff;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>`;
+    const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [34, 34], iconAnchor: [17, 34] });
+
+    if (!draftMarkerRef.current) {
+      draftMarkerRef.current = L.marker([draftTaskLocation.lat, draftTaskLocation.lng], { icon })
+        .addTo(map)
+        .bindPopup('<div style="padding:4px;color:#1e293b;font-weight:bold;font-size:11px;">📍 Draft Task Location<br/><span style="color:#64748b;font-weight:normal;font-size:9.5px;">Fill out the form in the Tasks tab to confirm</span></div>')
+        .openPopup();
+    } else {
+      draftMarkerRef.current.setLatLng([draftTaskLocation.lat, draftTaskLocation.lng]);
+    }
+  }, [draftTaskLocation, ready]);
 
   /* ─── Render ────────────────────────────────────────────────────────────── */
   return (

@@ -150,9 +150,9 @@ export default function EmployeePage() {
   // ── Loading ──────────────────────────────────────────────────────────────
   if (!mounted || !currentUser) {
     return (
-      <div className="min-h-screen w-full bg-[#0f0a06] flex items-center justify-center">
+      <div className="min-h-screen w-full bg-stone-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-[3px] border-amber-500/15 border-t-amber-500 rounded-full animate-spin" />
+          <div className="w-10 h-10 border-[3px] border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
           <p className="text-stone-500 text-xs font-bold uppercase tracking-widest">Authenticating…</p>
         </div>
       </div>
@@ -162,26 +162,26 @@ export default function EmployeePage() {
   const statusColor =
     gpsStatus === 'live'      ? '#10b981' :
     gpsStatus === 'acquiring' ? '#f59e0b' :
-    gpsStatus === 'error'     ? '#ef4444' : '#475569';
+    gpsStatus === 'error'     ? '#ef4444' : '#64748b';
 
   return (
-    <div className="min-h-screen w-full bg-[#0f0a06] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-stone-50 flex flex-col items-center justify-center p-4 relative overflow-hidden">
 
       {/* Background glows */}
-      <div className="absolute top-1/4 left-1/2 -transtone-x-1/2 w-[400px] h-[400px] rounded-full bg-amber-600/8 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[200px] h-[200px] rounded-full bg-emerald-500/6 blur-[80px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full bg-amber-400/20 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-[200px] h-[200px] rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none" />
 
       <div className="w-full max-w-sm z-10 space-y-3">
 
         {/* ── Header ───────────────────────────────────────────────────── */}
-        <div className="bg-stone-950/80 backdrop-blur border border-white/8 rounded-2xl p-4 flex items-center justify-between">
+        <div className="bg-white shadow-md border border-stone-200 rounded-2xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-600/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600">
               <User size={18} />
             </div>
             <div>
               <p className="text-[10px] text-stone-500 font-bold uppercase tracking-widest">Field Operative</p>
-              <p className="text-sm font-black text-stone-100">{currentUser.name}</p>
+              <p className="text-sm font-black text-stone-900">{currentUser.name}</p>
               {currentUser.organizationName && (
                 <p className="text-[10px] text-stone-500 flex items-center gap-1 mt-0.5">
                   <Building size={9}/> {currentUser.organizationName}
@@ -191,14 +191,14 @@ export default function EmployeePage() {
           </div>
           <button
             onClick={() => { handleEndShift(); logout(); router.replace('/'); }}
-            className="bg-rose-600/10 hover:bg-rose-600 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white px-3 py-1.5 rounded-xl text-[10.5px] font-bold transition flex items-center gap-1.5 cursor-pointer"
+            className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 px-3 py-1.5 rounded-xl text-[10.5px] font-bold transition flex items-center gap-1.5 cursor-pointer"
           >
             <LogOut size={11}/> Log Out
           </button>
         </div>
 
         {/* ── GPS Tracking Card ─────────────────────────────────────────── */}
-        <div className="bg-stone-950/80 backdrop-blur border border-white/8 rounded-2xl p-5 space-y-4">
+        <div className="bg-white shadow-md border border-stone-200 rounded-2xl p-5 space-y-4">
 
           {/* Status row */}
           <div className="flex items-center justify-between">
@@ -226,8 +226,8 @@ export default function EmployeePage() {
 
           {/* Error */}
           {gpsStatus === 'error' && gpsError && (
-            <div className="bg-rose-500/10 border border-rose-500/25 rounded-xl p-3 flex items-start gap-2 text-[10.5px] text-rose-300">
-              <AlertTriangle size={12} className="flex-shrink-0 mt-0.5 text-rose-400"/>
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-2 text-[10.5px] text-rose-600">
+              <AlertTriangle size={12} className="flex-shrink-0 mt-0.5 text-rose-500"/>
               <span>{gpsError}</span>
             </div>
           )}
@@ -235,21 +235,21 @@ export default function EmployeePage() {
           {/* Ping stats strip */}
           {gpsStatus === 'live' && (
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-stone-900/70 border border-white/5 rounded-xl p-2.5 text-center">
+              <div className="bg-stone-50 border border-stone-100 rounded-xl p-2.5 text-center">
                 <p className="text-[8px] text-stone-500 uppercase font-black tracking-wider">Pings Sent</p>
-                <p className="text-sm font-black text-amber-400 mt-0.5 flex items-center justify-center gap-1">
+                <p className="text-sm font-black text-amber-600 mt-0.5 flex items-center justify-center gap-1">
                   <Radio size={10}/> {pingCount}
                 </p>
               </div>
-              <div className="bg-stone-900/70 border border-white/5 rounded-xl p-2.5 text-center">
+              <div className="bg-stone-50 border border-stone-100 rounded-xl p-2.5 text-center">
                 <p className="text-[8px] text-stone-500 uppercase font-black tracking-wider">Last Ping</p>
                 <p className="text-sm font-black mt-0.5" style={{ color: secondsAgo <= 7 ? '#10b981' : '#f59e0b' }}>
                   {secondsAgo}s ago
                 </p>
               </div>
-              <div className="bg-stone-900/70 border border-white/5 rounded-xl p-2.5 text-center">
+              <div className="bg-stone-50 border border-stone-100 rounded-xl p-2.5 text-center">
                 <p className="text-[8px] text-stone-500 uppercase font-black tracking-wider">Accuracy</p>
-                <p className="text-sm font-black text-stone-200 mt-0.5">
+                <p className="text-sm font-black text-stone-900 mt-0.5">
                   {accuracy !== null ? `±${accuracy}m` : '…'}
                 </p>
               </div>
@@ -258,28 +258,28 @@ export default function EmployeePage() {
 
           {/* Coordinates + telemetry */}
           {tracking && tracking.status !== 'offline' && (
-            <div className="bg-stone-900/60 border border-white/5 rounded-xl p-3 space-y-2.5">
+            <div className="bg-stone-50 border border-stone-100 rounded-xl p-3 space-y-2.5">
               <p className="text-[9px] text-stone-500 font-black uppercase tracking-wider flex items-center gap-1">
                 <MapPin size={9}/> Current GPS Coordinates
               </p>
-              <p className="font-mono text-[11px] text-stone-200 font-bold">
+              <p className="font-mono text-[11px] text-stone-900 font-bold">
                 {tracking.latitude.toFixed(6)}, {tracking.longitude.toFixed(6)}
               </p>
-              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/5">
+              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-stone-200">
                 <div>
-                  <p className="text-[8px] text-stone-600 uppercase font-black">Speed</p>
-                  <p className="text-[11px] font-black text-stone-200 flex items-center gap-0.5 mt-0.5">
-                    <Zap size={9} className="text-amber-400"/> {tracking.speed} <span className="text-[8px] text-stone-500">km/h</span>
+                  <p className="text-[8px] text-stone-500 uppercase font-black">Speed</p>
+                  <p className="text-[11px] font-black text-stone-900 flex items-center gap-0.5 mt-0.5">
+                    <Zap size={9} className="text-amber-500"/> {tracking.speed} <span className="text-[8px] text-stone-500">km/h</span>
                   </p>
                 </div>
                 <div>
-                  <p className="text-[8px] text-stone-600 uppercase font-black">Battery</p>
+                  <p className="text-[8px] text-stone-500 uppercase font-black">Battery</p>
                   <p className="text-[11px] font-black mt-0.5 flex items-center gap-0.5" style={{ color: tracking.batteryLevel < 20 ? '#ef4444' : '#10b981' }}>
                     <Battery size={9}/> {tracking.batteryLevel}%
                   </p>
                 </div>
                 <div>
-                  <p className="text-[8px] text-stone-600 uppercase font-black">Status</p>
+                  <p className="text-[8px] text-stone-500 uppercase font-black">Status</p>
                   <p className="text-[11px] font-black mt-0.5" style={{ color: tracking.status === 'active' ? '#10b981' : '#f59e0b' }}>
                     {tracking.status.toUpperCase()}
                   </p>
@@ -312,36 +312,36 @@ export default function EmployeePage() {
 
         {/* ── Status Banner ─────────────────────────────────────────────── */}
         {gpsStatus === 'live' ? (
-          <div className="bg-emerald-500/8 border border-emerald-500/20 rounded-2xl p-3 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 flex-shrink-0 animate-pulse">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center gap-2.5 shadow-sm">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-600 flex-shrink-0 animate-pulse">
               <Wifi size={14}/>
             </div>
             <div>
-              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">Shift Active · Broadcasting Every 5s</p>
-              <p className="text-[9.5px] text-stone-400 mt-0.5">Admin can see your live location on the map right now.</p>
+              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Shift Active — Broadcasting Every 5s</p>
+              <p className="text-[9.5px] text-stone-600 mt-0.5">Admin can see your live location on the map right now.</p>
             </div>
           </div>
         ) : (
-          <div className="bg-stone-900/60 border border-white/5 rounded-2xl p-3 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-stone-800 border border-white/8 flex items-center justify-center text-stone-500 flex-shrink-0">
+          <div className="bg-white border border-stone-200 rounded-2xl p-3 flex items-center gap-2.5 shadow-sm">
+            <div className="w-8 h-8 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 flex-shrink-0">
               <WifiOff size={14}/>
             </div>
             <div>
-              <p className="text-[10px] font-black text-stone-400 uppercase tracking-wider">Off Duty · Hidden from Admin</p>
-              <p className="text-[9.5px] text-stone-600 mt-0.5">Tap "Go On Duty" to start broadcasting your location.</p>
+              <p className="text-[10px] font-black text-stone-500 uppercase tracking-wider">Off Duty — Hidden from Admin</p>
+              <p className="text-[9.5px] text-stone-400 mt-0.5">Tap "Go On Duty" to start broadcasting your location.</p>
             </div>
           </div>
         )}
 
         {/* ── Alerts ───────────────────────────────────────────────────── */}
         {myAlerts.length > 0 && (
-          <div className="bg-stone-950/80 backdrop-blur border border-amber-500/20 rounded-2xl p-4 space-y-2">
-            <p className="text-[9.5px] text-amber-400 font-black uppercase tracking-wider flex items-center gap-1">
+          <div className="bg-white shadow-md border border-amber-200 rounded-2xl p-4 space-y-2">
+            <p className="text-[9.5px] text-amber-600 font-black uppercase tracking-wider flex items-center gap-1">
               <AlertTriangle size={10}/> {myAlerts.length} Alert{myAlerts.length > 1 ? 's' : ''}
             </p>
             {myAlerts.map(a => (
-              <div key={a.id} className="text-[10px] text-stone-400 flex items-start gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0 mt-1.5"/>
+              <div key={a.id} className="text-[10px] text-stone-700 flex items-start gap-1.5">
+                <span className="w-1 h-1 rounded-full bg-amber-500 flex-shrink-0 mt-1.5"/>
                 <span>{a.message}</span>
               </div>
             ))}
@@ -350,8 +350,8 @@ export default function EmployeePage() {
 
         {/* 🚀 Tasks Section */}
         {myTasks.length > 0 && (
-          <div className="bg-stone-950/80 backdrop-blur border border-amber-600/30 rounded-2xl p-4 space-y-3">
-            <p className="text-[10px] text-amber-500 font-black uppercase tracking-wider flex items-center gap-1">
+          <div className="bg-white shadow-md border border-stone-200 rounded-2xl p-4 space-y-3">
+            <p className="text-[10px] text-amber-600 font-black uppercase tracking-wider flex items-center gap-1">
               <ClipboardList size={12}/> My Tasks ({myTasks.length})
             </p>
             {myTasks.map(t => {
@@ -361,28 +361,28 @@ export default function EmployeePage() {
                 distStr = distM > 1000 ? `${(distM/1000).toFixed(1)}km away` : `${Math.round(distM)}m away`;
               }
               return (
-                <div key={t.id} className="bg-stone-900/60 border border-white/5 rounded-xl p-3 flex flex-col gap-2">
+                <div key={t.id} className="bg-stone-50 border border-stone-200 rounded-xl p-3 flex flex-col gap-2">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-stone-200 font-bold text-sm">{t.title}</h4>
-                      <p className="text-stone-400 text-xs mt-0.5">{t.description}</p>
+                      <h4 className="text-stone-900 font-bold text-sm">{t.title}</h4>
+                      <p className="text-stone-500 text-xs mt-0.5">{t.description}</p>
                     </div>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${t.priority === 'High' ? 'bg-red-500/20 text-red-400' : 'bg-stone-800 text-stone-400'}`}>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${t.priority === 'High' ? 'bg-red-100 text-red-600' : 'bg-stone-200 text-stone-600'}`}>
                       {t.priority}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-stone-200">
                     {t.location && (
                       <button 
                         onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${t.location!.lat},${t.location!.lng}`, '_blank')}
-                        className="flex-1 bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition"
+                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition shadow-sm"
                       >
                         <Navigation2 size={12}/> Navigate {distStr && `(${distStr})`}
                       </button>
                     )}
                     <button 
                       onClick={() => completeTask(t.id)}
-                      className="flex-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition"
+                      className="flex-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-200 text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition"
                     >
                       <CheckCircle size={12}/> Complete
                     </button>

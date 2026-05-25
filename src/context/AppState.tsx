@@ -582,6 +582,130 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     isDemoMode
   ]);
 
+  // 3. Server-side State Synchronization (Syncs cross-device in real-time)
+  const lastSyncHashRef = useRef('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let active = true;
+    const syncState = async () => {
+      if (isMessageUpdateRef.current) return;
+      
+      try {
+        const payload = {
+          activeTracking: stateRef.current.activeTracking,
+          historyPaths: stateRef.current.historyPaths,
+          attendance: stateRef.current.attendance,
+          visits: stateRef.current.visits,
+          alerts: stateRef.current.alerts,
+          tasks: stateRef.current.tasks,
+          geofences: stateRef.current.geofences,
+          isOffline: stateRef.current.isOffline,
+        };
+
+        const res = await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok || !active) return;
+        const serverState = await res.json();
+
+        const currentHash = JSON.stringify({
+          activeTracking: serverState.activeTracking,
+          attendanceCount: serverState.attendance?.length,
+          visitsCount: serverState.visits?.length,
+          alertsCount: serverState.alerts?.length,
+          tasksCount: serverState.tasks?.length,
+          geofencesCount: serverState.geofences?.length,
+        });
+
+        if (currentHash === lastSyncHashRef.current) return;
+        lastSyncHashRef.current = currentHash;
+
+        isMessageUpdateRef.current = true;
+        
+        const parseDates = (arr: any[]) => {
+          if (!arr) return [];
+          return arr.map(item => {
+            const parsed = { ...item };
+            if (parsed.timestamp) parsed.timestamp = new Date(parsed.timestamp);
+            if (parsed.checkIn) parsed.checkIn = new Date(parsed.checkIn);
+            if (parsed.checkOut) parsed.checkOut = new Date(parsed.checkOut);
+            if (parsed.deadline) parsed.deadline = new Date(parsed.deadline);
+            if (parsed.completedAt) parsed.completedAt = new Date(parsed.completedAt);
+            if (parsed.createdAt) parsed.createdAt = new Date(parsed.createdAt);
+            return parsed;
+          });
+        };
+
+        const parseActiveTracking = (obj: any) => {
+          if (!obj) return {};
+          const parsed: any = {};
+          for (const [key, val] of Object.entries(obj) as any[]) {
+            parsed[key] = {
+              ...val,
+              timestamp: new Date(val.timestamp)
+            };
+          }
+          return parsed;
+        };
+
+        const parseHistoryPaths = (obj: any) => {
+          if (!obj) return {};
+          const parsed: any = {};
+          for (const [key, val] of Object.entries(obj) as any[]) {
+            parsed[key] = parseDates(val);
+          }
+          return parsed;
+        };
+
+        if (serverState.activeTracking) {
+          setActiveTracking(parseActiveTracking(serverState.activeTracking));
+        }
+        if (serverState.historyPaths) {
+          setHistoryPaths(parseHistoryPaths(serverState.historyPaths));
+        }
+        if (serverState.attendance) {
+          setAttendance(parseDates(serverState.attendance));
+        }
+        if (serverState.visits) {
+          setVisits(parseDates(serverState.visits));
+        }
+        if (serverState.alerts) {
+          setAlerts(parseDates(serverState.alerts));
+        }
+        if (serverState.tasks) {
+          setTasks(parseDates(serverState.tasks));
+        }
+        if (serverState.geofences) {
+          setGeofences(parseDates(serverState.geofences));
+        }
+        if (serverState.isOffline) {
+          setIsOffline(serverState.isOffline);
+          isOfflineRef.current = serverState.isOffline;
+        }
+
+        setTimeout(() => {
+          isMessageUpdateRef.current = false;
+        }, 100);
+
+      } catch (err) {
+        console.error('State sync error:', err);
+      }
+    };
+
+    syncState();
+    const interval = setInterval(syncState, 3000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   const setGPSSource = (employeeId: string, source: 'route' | 'real') => {
     if (gpsSourceRef.current[employeeId] === source) return;
     gpsSourceRef.current[employeeId] = source;

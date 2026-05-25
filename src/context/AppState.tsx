@@ -602,6 +602,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           tasks: stateRef.current.tasks,
           geofences: stateRef.current.geofences,
           isOffline: stateRef.current.isOffline,
+          gpsSource: stateRef.current.gpsSource,
+          isDemoMode: stateRef.current.isDemoMode,
         };
 
         const res = await fetch('/api/sync', {
@@ -620,6 +622,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           alertsCount: serverState.alerts?.length,
           tasksCount: serverState.tasks?.length,
           geofencesCount: serverState.geofences?.length,
+          isDemoMode: serverState.isDemoMode,
         });
 
         if (currentHash === lastSyncHashRef.current) return;
@@ -686,6 +689,14 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (serverState.isOffline) {
           setIsOffline(serverState.isOffline);
           isOfflineRef.current = serverState.isOffline;
+        }
+        if (serverState.gpsSource) {
+          setGpsSource(serverState.gpsSource);
+          gpsSourceRef.current = serverState.gpsSource;
+        }
+        if (serverState.isDemoMode !== undefined) {
+          setIsDemoMode(serverState.isDemoMode);
+          isDemoModeRef.current = serverState.isDemoMode;
         }
 
         setTimeout(() => {
@@ -1480,6 +1491,11 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const injectGPSPing = (employeeId: string, lat: number, lng: number, speed: number = -1) => {
     const employee = stateRef.current.employees.find(e => e.id === employeeId);
     if (!employee) return;
+
+    if (gpsSourceRef.current[employeeId] !== 'real') {
+      gpsSourceRef.current[employeeId] = 'real';
+      setGpsSource(prev => ({ ...prev, [employeeId]: 'real' }));
+    }
 
     const offline     = isOfflineRef.current[employeeId] || false;
     const currentGPS  = stateRef.current.activeTracking[employeeId];

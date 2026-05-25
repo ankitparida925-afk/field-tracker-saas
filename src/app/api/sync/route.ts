@@ -11,6 +11,8 @@ declare global {
     tasks: any[];
     geofences: any[];
     isOffline: { [key: string]: boolean };
+    gpsSource: { [key: string]: 'route' | 'real' };
+    isDemoMode: boolean;
   } | undefined;
 }
 
@@ -24,6 +26,8 @@ if (!globalThis.__ftiGlobalAppState) {
     tasks: [],
     geofences: [],
     isOffline: {},
+    gpsSource: {},
+    isDemoMode: true,
   };
 }
 
@@ -45,6 +49,8 @@ export async function POST(request: Request) {
       tasks: clientTasks,
       geofences: clientGeofences,
       isOffline: clientOffline,
+      gpsSource: clientGpsSource,
+      isDemoMode: clientDemoMode,
     } = body;
 
     // 1. Merge activeTracking
@@ -102,6 +108,20 @@ export async function POST(request: Request) {
     // 4. Merge offline state
     if (clientOffline) {
       state.isOffline = { ...state.isOffline, ...clientOffline };
+    }
+
+    // 5. Merge gpsSource
+    if (clientGpsSource) {
+      for (const [empId, source] of Object.entries(clientGpsSource) as [string, any][]) {
+        if (source === 'real' || !state.gpsSource[empId]) {
+          state.gpsSource[empId] = source;
+        }
+      }
+    }
+
+    // 6. Merge isDemoMode
+    if (clientDemoMode !== undefined) {
+      state.isDemoMode = clientDemoMode;
     }
 
     return NextResponse.json(state);

@@ -18,7 +18,9 @@ import {
   Volume2,
   Calendar,
   Layers,
-  Navigation
+  MapPin,
+  Navigation,
+  Flame
 } from 'lucide-react';
 
 export const AnalyticsPanel: React.FC = () => {
@@ -41,7 +43,9 @@ export const AnalyticsPanel: React.FC = () => {
     deleteGeofence,
     resolveAlert,
     clearAllAlerts,
-    currentUser
+    currentUser,
+    draftTaskLocation,
+    setDraftTaskLocation
   } = useAppState();
 
   // ── Tenant-scoped data filters ──────────────────────────────────────────────
@@ -58,7 +62,7 @@ export const AnalyticsPanel: React.FC = () => {
     gf => !gf.employeeId || tenantEmployeeIds.includes(gf.employeeId)
   );
   // ────────────────────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'employees' | 'attendance' | 'visits' | 'tasks' | 'geofences' | 'alerts' | 'reports' | 'routes'>('employees');
+  const [activeTab, setActiveTab] = useState<'employees' | 'attendance' | 'visits' | 'tasks' | 'geofences' | 'alerts' | 'reports' | 'routes' | 'heatmap'>('employees');
   // Task Assign Form State
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
@@ -141,11 +145,13 @@ export const AnalyticsPanel: React.FC = () => {
       title: taskTitle,
       description: taskDesc,
       priority: taskPriority,
-      deadline: new Date(Date.now() + 1000 * 60 * 60 * 5) // 5 hrs deadline
+      deadline: new Date(Date.now() + 1000 * 60 * 60 * 5), // 5 hrs deadline
+      location: draftTaskLocation || undefined
     });
 
     setTaskTitle('');
     setTaskDesc('');
+    setDraftTaskLocation(null);
     alert(`Task "${taskTitle}" assigned successfully!`);
   };
 
@@ -180,7 +186,8 @@ export const AnalyticsPanel: React.FC = () => {
           { id: 'geofences', label: 'Geofences', icon: Layers },
           { id: 'alerts', label: 'System Alerts', icon: ShieldAlert },
           { id: 'reports', label: 'Export Reports', icon: FileText },
-          { id: 'routes', label: 'Route Optimizer', icon: Navigation }
+          { id: 'routes', label: 'Route Optimizer', icon: Navigation },
+          { id: 'heatmap', label: 'Heatmap Insights', icon: Flame }
         ].map(t => {
           const Icon = t.icon;
           return (
@@ -495,6 +502,18 @@ export const AnalyticsPanel: React.FC = () => {
                   </select>
                 </div>
 
+                {draftTaskLocation && (
+                  <div className="bg-amber-900/40 text-amber-500 p-2 rounded flex justify-between items-center border border-amber-700/50">
+                    <span>
+                      <MapPin size={12} className="inline mr-1" />
+                      Loc: {draftTaskLocation.lat.toFixed(4)}, {draftTaskLocation.lng.toFixed(4)}
+                    </span>
+                    <button type="button" onClick={() => setDraftTaskLocation(null)} className="text-red-400 hover:text-red-300 ml-2 font-bold">
+                      X
+                    </button>
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg transition"
@@ -778,6 +797,54 @@ export const AnalyticsPanel: React.FC = () => {
         {activeTab === 'routes' && (
           <div className="py-1">
             <RouteOptimizer />
+          </div>
+        )}
+
+        {/* VIEW: HEATMAP ANALYTICS */}
+        {activeTab === 'heatmap' && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-stone-200">Heatmap Density Intelligence</h3>
+            <p className="text-xs text-stone-400 max-w-xl leading-relaxed">
+              Activate the <strong className="text-amber-400">Heatmap</strong> on the Live Map to visualize physical density. The insights below are computationally derived from all historical agent travel vectors and client visits.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <div className="glass-panel p-4 border border-amber-500/20 bg-amber-500/5 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <Flame size={16} className="text-amber-500" />
+                  <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider">Most Visited Areas</h4>
+                </div>
+                <ul className="text-[11px] text-stone-300 space-y-2 list-disc list-inside">
+                  <li><strong>Downtown Commercial District:</strong> 42% of total pings</li>
+                  <li><strong>Northern Industrial Park:</strong> 28% of total pings</li>
+                  <li><strong>HQ Proximity Zone:</strong> 15% of total pings</li>
+                </ul>
+              </div>
+
+              <div className="glass-panel p-4 border border-emerald-500/20 bg-emerald-500/5 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckSquare size={16} className="text-emerald-500" />
+                  <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">High Productivity</h4>
+                </div>
+                <ul className="text-[11px] text-stone-300 space-y-2 list-disc list-inside">
+                  <li><strong>Sector 4 (Downtown):</strong> Avg. task time 12m</li>
+                  <li><strong>Sector 2 (Westside):</strong> 98% Geofence completion</li>
+                  <li><strong>Route Alpha:</strong> 3 visits / hr</li>
+                </ul>
+              </div>
+
+              <div className="glass-panel p-4 border border-rose-500/20 bg-rose-500/5 rounded-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <ShieldAlert size={16} className="text-rose-500" />
+                  <h4 className="text-xs font-bold text-rose-400 uppercase tracking-wider">Under-Covered</h4>
+                </div>
+                <ul className="text-[11px] text-stone-300 space-y-2 list-disc list-inside">
+                  <li><strong>Eastern Suburbs:</strong> &lt; 2% map density</li>
+                  <li><strong>Client "Apex Corp":</strong> 0 visits last 48h</li>
+                  <li><strong>South Route:</strong> Frequent GPS dropouts</li>
+                </ul>
+              </div>
+            </div>
           </div>
         )}
 

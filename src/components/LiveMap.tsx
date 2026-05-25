@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppState } from '../context/AppState';
-import { Layers, Navigation, ZoomIn, ShieldAlert, Users, Zap, Radio } from 'lucide-react';
+import { Layers, Navigation, ZoomIn, ShieldAlert, Users, Zap, Radio, Flame, ClipboardList } from 'lucide-react';
 
 /* ─── SVG marker builders ─────────────────────────────────────────────────── */
 function empPinHtml(color: string, statusColor: string, initials: string, fresh: boolean) {
@@ -33,8 +33,9 @@ function meSvg() {
 
 const LiveMap: React.FC = () => {
   const {
-    employees, activeTracking, historyPaths, geofences,
+    employees, activeTracking, historyPaths, geofences, visits,
     selectedEmployeeId, setSelectedEmployeeId, addGeofence,
+    tasks, setDraftTaskLocation
   } = useAppState();
 
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -50,18 +51,23 @@ const LiveMap: React.FC = () => {
   const gfRadiusRef   = useRef(100);
   const drawModeRef   = useRef(false);
   const pingTimesRef  = useRef<Record<string, Date>>({});
+  const heatLayerRef  = useRef<any>(null);
 
   const [ready,    setReady]    = useState(false);
   const [layer,    setLayer]    = useState<'dark'|'sat'>('dark');
   const [locating, setLocating] = useState(false);
   const [drawMode, setDrawMode] = useState(false);
+  const [taskDropMode, setTaskDropMode] = useState(false);
+  const taskDropModeRef = useRef(false);
   const [gfType,   setGfType]   = useState<'client'|'territory'|'restricted'>('client');
   const [gfRadius, setGfRadius] = useState(100);
+  const [mapMode,  setMapMode]  = useState<'live'|'heatmap'>('live');
   const [, setTick]             = useState(0); // force 1s re-render for timers
 
   useEffect(() => { gfTypeRef.current   = gfType;   }, [gfType]);
   useEffect(() => { gfRadiusRef.current = gfRadius; }, [gfRadius]);
   useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
+  useEffect(() => { taskDropModeRef.current = taskDropMode; }, [taskDropMode]);
 
   // Tick every second for live "X seconds ago" timers
   useEffect(() => {
@@ -94,7 +100,10 @@ const LiveMap: React.FC = () => {
     }
 
     const init = async () => {
-      const L = (await import('leaflet')).default;
+      const L = await import('leaflet');
+      await import('leaflet/dist/leaflet.css');
+      (window as any).L = L;
+      await import('leaflet.heat');
       LRef.current = L;
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({ iconUrl: '', shadowUrl: '' });
@@ -278,13 +287,19 @@ const LiveMap: React.FC = () => {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (!drawMode) {
-      map.off('click.gfdraw');
+    if (!drawMode && !taskDropMode) {
+      map.off('click');
       map.getContainer().style.cursor = '';
       return;
     }
     map.getContainer().style.cursor = 'crosshair';
     const handler = (e: any) => {
+      if (taskDropModeRef.current) {
+        setDraftTaskLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
+        setTaskDropMode(false);
+        return;
+      }
+      if (!drawModeRef.current) return;
       const name = window.prompt('Geofence name:', `Zone ${Math.floor(Math.random()*900)+100}`);
       if (!name) return;
       addGeofence({ name, lat: e.latlng.lat, lng: e.latlng.lng, radius: gfRadiusRef.current, type: gfTypeRef.current });
@@ -293,7 +308,35 @@ const LiveMap: React.FC = () => {
     map.on('click', handler);
     return () => { map.off('click', handler); map.getContainer().style.cursor = ''; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawMode, ready]);
+  }, [drawMode, taskDropMode, ready]);
+
+  /* ── 8. Task markers ─────────────────────────────────────────────────── */
+  const taskMarkersRef = useRef<Record<string, any>>({});
+  useEffect(() => {
+    const map = mapRef.current; const L = LRef.current;
+    if (!map || !L || !ready) return;
+
+    Object.keys(taskMarkersRef.current).forEach(id => {
+      const exists = tasks.find(t => t.id === id);
+      if (!exists || exists.status !== 'Pending' || !exists.location) {
+        map.removeLayer(taskMarkersRef.current[id]);
+        delete taskMarkersRef.current[id];
+      }
+    });
+
+    tasks.forEach(task => {
+      if (task.status !== 'Pending' || !task.location) return;
+      if (!taskMarkersRef.current[task.id]) {
+        const iconHtml = `<div style="background:#ea580c;color:white;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 6px rgba(0,0,0,0.3);border:2px solid #fff;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14h6"></path><path d="M9 10h6"></path><path d="M9 18h6"></path></svg></div>`;
+        const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [30, 30], iconAnchor: [15, 30] });
+        const marker = L.marker([task.location.lat, task.location.lng], { icon }).addTo(map);
+        marker.bindPopup(`<div style="padding:4px;color:#1e293b;"><b>${task.title}</b><br/><span style="color:#64748b;font-size:11px">Assigned to: ${task.employeeName}</span></div>`);
+        taskMarkersRef.current[task.id] = marker;
+      } else {
+        taskMarkersRef.current[task.id].setLatLng([task.location.lat, task.location.lng]);
+      }
+    });
+  }, [tasks, ready]);
 
   /* ── Locate Me ───────────────────────────────────────────────────────── */
   const handleLocateMe = () => {
@@ -326,8 +369,46 @@ const LiveMap: React.FC = () => {
   };
 
   const activeCount = employees.filter(e => activeTracking[e.id] && activeTracking[e.id].status !== 'offline').length;
+  // ─── Heatmap rendering ───────────────────────────────────────────
+  useEffect(() => {
+    if (!ready || !mapRef.current || !LRef.current) return;
+    const map = mapRef.current;
+    const L = LRef.current;
 
-  /* ── Render ──────────────────────────────────────────────────────────── */
+    // Toggle markers & routes
+    Object.values(markersRef.current).forEach((m: any) => m.setOpacity(mapMode === 'heatmap' ? 0 : 1));
+    Object.values(routesRef.current).forEach((r: any) => r.setStyle({ opacity: mapMode === 'heatmap' ? 0 : 0.8 }));
+
+    if (mapMode === 'heatmap') {
+      if (heatLayerRef.current) map.removeLayer(heatLayerRef.current);
+      
+      const points: any[] = [];
+      Object.values(historyPaths).forEach(path => {
+        path.forEach(p => points.push([p.latitude, p.longitude, 0.5]));
+      });
+      visits.forEach(v => {
+        if (v.location) {
+          points.push([v.location.lat, v.location.lng, 2]); // higher weight for actual visits
+        }
+      });
+
+      if ((L as any).heatLayer && points.length > 0) {
+        heatLayerRef.current = (L as any).heatLayer(points, {
+          radius: 25,
+          blur: 15,
+          maxZoom: 17,
+          gradient: { 0.4: '#fbbf24', 0.6: '#f59e0b', 0.8: '#ea580c', 1.0: '#dc2626' }
+        }).addTo(map);
+      }
+    } else {
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
+      }
+    }
+  }, [mapMode, ready, historyPaths, visits]);
+
+  /* ─── Render ────────────────────────────────────────────────────────────── */
   return (
     <div style={{ position:'relative', width:'100%', height:'100%', minHeight:'460px', background:'#140d0a', borderRadius:'14px', overflow:'hidden' }}>
 
@@ -344,8 +425,19 @@ const LiveMap: React.FC = () => {
       <div style={{ position:'absolute', top:14, left:14, zIndex:30, display:'flex', gap:3, background:'rgba(9,13,22,0.92)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:12, padding:4 }}>
         {(['dark','sat'] as const).map(l => (
           <button key={l} onClick={() => setLayer(l)}
-            style={{ padding:'4px 14px', fontSize:11, fontWeight:700, borderRadius:8, border:'none', cursor:'pointer', transition:'all 0.2s', background: layer===l ? '#4f46e5' : 'transparent', color: layer===l ? '#fff' : '#64748b' }}>
+            style={{ padding:'4px 14px', fontSize:11, fontWeight:700, borderRadius:8, border:'none', cursor:'pointer', transition:'all 0.2s', background: layer===l ? '#d97706' : 'transparent', color: layer===l ? '#fff' : '#64748b' }}>
             {l === 'dark' ? 'Dark Map' : 'Satellite'}
+          </button>
+        ))}
+      </div>
+
+      {/* Map Mode switcher */}
+      <div style={{ position:'absolute', top:14, left:180, zIndex:30, display:'flex', gap:3, background:'rgba(9,13,22,0.92)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:12, padding:4 }}>
+        {(['live','heatmap'] as const).map(m => (
+          <button key={m} onClick={() => setMapMode(m)}
+            style={{ padding:'4px 14px', fontSize:11, fontWeight:700, borderRadius:8, border:'none', cursor:'pointer', transition:'all 0.2s', background: mapMode===m ? '#ea580c' : 'transparent', color: mapMode===m ? '#fff' : '#64748b', display:'flex', alignItems:'center', gap:4 }}>
+            {m === 'live' ? <Radio size={12}/> : <Flame size={12}/>}
+            {m === 'live' ? 'Live GPS' : 'Heatmap'}
           </button>
         ))}
       </div>
@@ -394,6 +486,26 @@ const LiveMap: React.FC = () => {
             <button onClick={() => setDrawMode(true)}
               style={{ background:'transparent', color:'#94a3b8', fontSize:11, fontWeight:700, padding:0, border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
               <Layers size={13}/> Draw Geofence
+            </button>
+          )}
+        </div>
+
+        {/* Task Drop Mode */}
+        <div style={{ background:'rgba(9,13,22,0.92)', backdropFilter:'blur(10px)', border:`1px solid ${taskDropMode?'rgba(234,88,12,0.4)':'rgba(255,255,255,0.1)'}`, borderRadius:12, padding:'8px 12px', display:'flex', alignItems:'center', gap:8 }}>
+          {taskDropMode ? (
+            <>
+              <span style={{ fontSize:10, color:'#ea580c', fontWeight:700, display:'flex', alignItems:'center', gap:4 }}>
+                <ClipboardList size={11}/> CLICK MAP FOR TASK
+              </span>
+              <button onClick={() => setTaskDropMode(false)}
+                style={{ background:'#dc2626', color:'#fff', fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:6, border:'none', cursor:'pointer' }}>
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setTaskDropMode(true)}
+              style={{ background:'transparent', color:'#94a3b8', fontSize:11, fontWeight:700, padding:0, border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+              <ClipboardList size={13}/> Drop Task Location
             </button>
           )}
         </div>

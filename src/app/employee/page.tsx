@@ -6,17 +6,25 @@ import { useAppState } from '../../context/AppState';
 import {
   MapPin, LogOut, Navigation, Battery, Zap, Wifi, WifiOff,
   Clock, CheckCircle, AlertTriangle, Play, Square, Activity,
-  User, Building, Radio
+  User, Building, Radio, ClipboardList, Navigation2
 } from 'lucide-react';
 
 const GPS_INTERVAL_MS = 5000; // Ping every 5 seconds
+
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371e3;
+  const p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180;
+  const dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 
 export default function EmployeePage() {
   const {
     currentUser, logout,
     employees, activeTracking,
     startShift, endShift, injectGPSPing, setGPSSource,
-    alerts,
+    alerts, tasks, completeTask
   } = useAppState();
 
   const router = useRouter();
@@ -48,6 +56,7 @@ export default function EmployeePage() {
   const tracking  = employee ? activeTracking[employee.id] : null;
   const isOnDuty  = !!tracking && tracking.status !== 'offline';
   const myAlerts  = alerts.filter(a => a.employeeId === employee?.id && !a.resolved).slice(0,3);
+  const myTasks = tasks.filter(t => t.employeeId === employee?.id && t.status === 'Pending');
 
   // ── "seconds ago" counter ────────────────────────────────────────────────
   React.useEffect(() => {
@@ -336,6 +345,51 @@ export default function EmployeePage() {
                 <span>{a.message}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* 🚀 Tasks Section */}
+        {myTasks.length > 0 && (
+          <div className="bg-stone-950/80 backdrop-blur border border-amber-600/30 rounded-2xl p-4 space-y-3">
+            <p className="text-[10px] text-amber-500 font-black uppercase tracking-wider flex items-center gap-1">
+              <ClipboardList size={12}/> My Tasks ({myTasks.length})
+            </p>
+            {myTasks.map(t => {
+              let distStr = '';
+              if (t.location && tracking && tracking.status !== 'offline') {
+                const distM = getDistance(tracking.latitude, tracking.longitude, t.location.lat, t.location.lng);
+                distStr = distM > 1000 ? `${(distM/1000).toFixed(1)}km away` : `${Math.round(distM)}m away`;
+              }
+              return (
+                <div key={t.id} className="bg-stone-900/60 border border-white/5 rounded-xl p-3 flex flex-col gap-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-stone-200 font-bold text-sm">{t.title}</h4>
+                      <p className="text-stone-400 text-xs mt-0.5">{t.description}</p>
+                    </div>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${t.priority === 'High' ? 'bg-red-500/20 text-red-400' : 'bg-stone-800 text-stone-400'}`}>
+                      {t.priority}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
+                    {t.location && (
+                      <button 
+                        onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${t.location!.lat},${t.location!.lng}`, '_blank')}
+                        className="flex-1 bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition"
+                      >
+                        <Navigation2 size={12}/> Navigate {distStr && `(${distStr})`}
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => completeTask(t.id)}
+                      className="flex-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition"
+                    >
+                      <CheckCircle size={12}/> Complete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 

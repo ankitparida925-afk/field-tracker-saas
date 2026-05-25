@@ -89,6 +89,7 @@ export interface Task {
   deadline: Date;
   status: 'Pending' | 'Completed';
   completedAt?: Date;
+  location?: { lat: number; lng: number };
 }
 
 interface Geofence {
@@ -134,6 +135,8 @@ interface AppStateContextType {
   injectGPSPing: (employeeId: string, lat: number, lng: number, speed?: number) => void;
   // Admin triggers
   assignTask: (task: Omit<Task, 'id' | 'status' | 'employeeName'>) => void;
+  draftTaskLocation: { lat: number; lng: number } | null;
+  setDraftTaskLocation: (loc: { lat: number; lng: number } | null) => void;
   completeTask: (taskId: string) => void;
   addGeofence: (geofence: Omit<Geofence, 'id'>) => void;
   deleteGeofence: (id: string) => void;
@@ -274,6 +277,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [visits, setVisits] = useState<VisitRecord[]>([]);
   const [alerts, setAlerts] = useState<AlertLog[]>([]);
+  const [draftTaskLocation, setDraftTaskLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [tasks, setTasks] = useState<Task[]>([
     {
       id: 'task-1',
@@ -1431,6 +1435,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         uploadVoiceNote,
         injectGPSPing,
         assignTask,
+        draftTaskLocation,
+        setDraftTaskLocation,
         completeTask,
         addGeofence,
         deleteGeofence,

@@ -58,6 +58,8 @@ export default function EmployeePage() {
   const myAlerts  = alerts.filter(a => a.employeeId === employee?.id && !a.resolved).slice(0,3);
   const myTasks = tasks.filter(t => t.employeeId === employee?.id && t.status === 'Pending');
 
+
+
   // ── "seconds ago" counter ────────────────────────────────────────────────
   React.useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -143,6 +145,13 @@ export default function EmployeePage() {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }, [employee, startShift, setGPSSource, sendPing]);
+
+  // Auto-restore active duty status and tracking watches on page refresh
+  React.useEffect(() => {
+    if (mounted && employee && isOnDuty && gpsStatus === 'idle') {
+      handleStartShift();
+    }
+  }, [mounted, employee, isOnDuty, gpsStatus, handleStartShift]);
 
   // Cleanup on unmount
   React.useEffect(() => () => stopTracking(), [stopTracking]);

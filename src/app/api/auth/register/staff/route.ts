@@ -1,4 +1,4 @@
-﻿/**
+/**
  * POST /api/auth/register/staff
  * ──────────────────────────────
  * Registers a new field operative. Hashes the password with bcrypt.
@@ -35,14 +35,14 @@ const COLOR_POOL = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b
 export async function POST(req: NextRequest): Promise<NextResponse> {
   await seedStore();
 
-  let body: Record<string, string>;
+  let body: any;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { name, email, password, department, phone, organizationId } = body;
+  const { name, email, password, department, phone, organizationId, employeeCode, assignedManagerId, isManager } = body;
 
   if (!name?.trim() || !email?.trim() || !password || !phone?.trim() || !organizationId) {
     return NextResponse.json({ error: 'All fields are required.' }, { status: 400 });
@@ -69,19 +69,44 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const empId       = `emp-${Date.now()}`;
   const idx         = Math.floor(Math.random() * COLOR_POOL.length);
   const passwordHash = await bcrypt.hash(password, 12);
+  const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+  const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+  console.log(`
+========================================================================
+📧 [SIMULATED SMTP EMAIL DISPATCH]
+To: ${cleanEmail}
+Subject: [FieldTracker] Action Required: Your Secure One-Time Passcode (OTP)
+------------------------------------------------------------------------
+Hello ${name.trim()},
+
+Welcome to FieldTracker Innovations+. Your administrator has registered your profile.
+
+To log in to your tenant account, use the following secure One-Time Passcode:
+👉   ${otpCode}   👈
+
+Note: This passcode is temporary and expires in 10 minutes.
+========================================================================
+  `);
 
   addEmployee({
     id:             empId,
     name:           name.trim(),
     email:          cleanEmail,
     passwordHash,
-    role:           `${(department || 'Field').trim()} Representative`,
+    role:           isManager ? 'Field Operations Manager' : `${(department || 'Field').trim()} Representative`,
     department:     (department || 'Field').trim(),
     phone:          phone.trim(),
     organizationId,
     avatar:         AVATAR_POOL[idx % AVATAR_POOL.length],
     color:          COLOR_POOL[idx],
+    employeeCode:   employeeCode || `EMP-${Math.floor(Math.random()*9000)+1000}`,
+    assignedManagerId: assignedManagerId || undefined,
+    isManager:      !!isManager,
+    isActive:       true,
+    otpCode,
+    otpExpiry
   });
 
-  return NextResponse.json({ employeeId: empId }, { status: 201 });
+  return NextResponse.json({ employeeId: empId, otpCode }, { status: 201 });
 }

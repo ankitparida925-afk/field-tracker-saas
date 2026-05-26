@@ -8,18 +8,21 @@ interface SuperAdminMapProps {
   activeTracking: Record<string, any>;
   employees: any[];
   selectedOrgFilter: string;
+  historyPaths: Record<string, any>;
 }
 
 const SuperAdminMap: React.FC<SuperAdminMapProps> = ({
   organizations,
   activeTracking,
   employees,
-  selectedOrgFilter
+  selectedOrgFilter,
+  historyPaths
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const LRef = useRef<any>(null);
   const markersRef = useRef<Record<string, any>>({});
+  const routesRef = useRef<Record<string, any>>({});
   const [ready, setReady] = useState(false);
   const [layer, setLayer] = useState<'light' | 'dark' | 'sat'>('light');
 
@@ -124,9 +127,12 @@ const SuperAdminMap: React.FC<SuperAdminMapProps> = ({
     const L = LRef.current;
     const map = mapRef.current;
 
-    // Remove old markers
+    // Remove old markers and routes
     Object.values(markersRef.current).forEach(m => map.removeLayer(m));
     markersRef.current = {};
+
+    Object.values(routesRef.current).forEach(r => map.removeLayer(r));
+    routesRef.current = {};
 
     // Group active employees
     const activeStaff = employees.filter(emp => {
@@ -185,13 +191,25 @@ const SuperAdminMap: React.FC<SuperAdminMapProps> = ({
 
       markersRef.current[emp.id] = marker;
       bounds.push([ping.latitude, ping.longitude]);
+
+      // Draw Swiggy/Zomato style thin, solid movement trails
+      const pts = (historyPaths[emp.id] || []).map((p: any) => [p.latitude, p.longitude] as [number, number]);
+      if (pts.length > 1) {
+        routesRef.current[emp.id] = L.polyline(pts, {
+          color: color,
+          weight: 2.2,
+          opacity: 0.85,
+          lineJoin: 'round',
+          lineCap: 'round'
+        }).addTo(map);
+      }
     });
 
     // Center map on markers
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
     }
-  }, [ready, activeTracking, employees, selectedOrgFilter, organizations]);
+  }, [ready, activeTracking, employees, selectedOrgFilter, organizations, historyPaths]);
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-inner border border-slate-200">

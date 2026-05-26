@@ -37,6 +37,12 @@ export interface StoredEmployee {
   organizationId: string;
   avatar:         string;
   color:          string;
+  employeeCode?:  string;
+  assignedManagerId?: string;
+  isManager?:     boolean;
+  isActive?:      boolean;
+  otpCode?:       string;
+  otpExpiry?:     number;
 }
 
 export interface StoredSuperAdmin {
@@ -98,8 +104,8 @@ export async function seedStore(): Promise<void> {
     phone:            '+1 (555) 900-1200',
     industry:         'Software & Telemetry',
     createdAt:        new Date('2026-01-01'),
-    subscriptionPlan: 'ENTERPRISE',
-    employeeLimit:    100,
+    subscriptionPlan: 'FREE_TRIAL',
+    employeeLimit:    5,
     status:           'ACTIVE',
   });
 
@@ -131,14 +137,14 @@ export async function seedStore(): Promise<void> {
 
   // Default employees
   const defaults = [
-    { id: 'emp-1', name: 'Rahul Sharma',  email: 'rahul@fti.com',  pass: 'rahul123',  dept: 'Sales & Marketing',       role: 'Enterprise Sales Lead', phone: '+1 (555) 019-2834', color: '#3b82f6', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', orgId: 'org-fti' },
-    { id: 'emp-2', name: 'Sarah Jenkins', email: 'sarah@fti.com',  pass: 'sarah123',  dept: 'Pharmaceuticals',          role: 'Pharma Field Specialist', phone: '+1 (555) 238-4910', color: '#10b981', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', orgId: 'org-fti' },
-    { id: 'emp-3', name: 'Amit Patel',    email: 'amit@fti.com',   pass: 'amit123',   dept: 'Logistics Operations',     role: 'Last-Mile Delivery Lead', phone: '+1 (555) 402-8821', color: '#f59e0b', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', orgId: 'org-fti' },
-    { id: 'emp-4', name: 'Carlos Ruiz',   email: 'carlos@fti.com', pass: 'carlos123', dept: 'Maintenance & Service',    role: 'HVAC Service Expert',     phone: '+1 (555) 781-3342', color: '#8b5cf6', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150', orgId: 'org-fti' },
+    { id: 'emp-1', name: 'Rahul Sharma',  email: 'rahul@fti.com',  pass: 'rahul123',  dept: 'Sales & Marketing',       role: 'Enterprise Sales Lead', phone: '+1 (555) 019-2834', color: '#3b82f6', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', orgId: 'org-fti', code: 'MGR-1001', managerId: '', isManager: true, active: true },
+    { id: 'emp-2', name: 'Sarah Jenkins', email: 'sarah@fti.com',  pass: 'sarah123',  dept: 'Pharmaceuticals',          role: 'Pharma Field Specialist', phone: '+1 (555) 238-4910', color: '#10b981', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', orgId: 'org-fti', code: 'EMP-2002', managerId: 'emp-1', isManager: false, active: true },
+    { id: 'emp-3', name: 'Amit Patel',    email: 'amit@fti.com',   pass: 'amit123',   dept: 'Logistics Operations',     role: 'Last-Mile Delivery Lead', phone: '+1 (555) 402-8821', color: '#f59e0b', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', orgId: 'org-fti', code: 'EMP-2003', managerId: 'emp-1', isManager: false, active: true },
+    { id: 'emp-4', name: 'Carlos Ruiz',   email: 'carlos@fti.com', pass: 'carlos123', dept: 'Maintenance & Service',    role: 'HVAC Service Expert',     phone: '+1 (555) 781-3342', color: '#8b5cf6', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150', orgId: 'org-fti', code: 'EMP-2004', managerId: 'emp-1', isManager: false, active: true },
     
     // Apex employees
-    { id: 'emp-apex-1', name: 'Danielle Brooks', email: 'danielle@apex.com', pass: 'danielle123', dept: 'Operations', role: 'Freight Driver', phone: '+1 (555) 303-1290', color: '#ec4899', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', orgId: 'org-apex' },
-    { id: 'emp-apex-2', name: 'James Carter',    email: 'james@apex.com',    pass: 'james123',    dept: 'Logistics',  role: 'Fleet Supervisor', phone: '+1 (555) 404-9811', color: '#06b6d4', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150', orgId: 'org-apex' }
+    { id: 'emp-apex-1', name: 'Danielle Brooks', email: 'danielle@apex.com', pass: 'danielle123', dept: 'Operations', role: 'Freight Driver', phone: '+1 (555) 303-1290', color: '#ec4899', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', orgId: 'org-apex', code: 'EMP-3001', managerId: '', isManager: false, active: true },
+    { id: 'emp-apex-2', name: 'James Carter',    email: 'james@apex.com',    pass: 'james123',    dept: 'Logistics',  role: 'Fleet Supervisor', phone: '+1 (555) 404-9811', color: '#06b6d4', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150', orgId: 'org-apex', code: 'MGR-3002', managerId: '', isManager: true, active: true }
   ];
 
   for (const d of defaults) {
@@ -153,6 +159,10 @@ export async function seedStore(): Promise<void> {
       organizationId: d.orgId,
       avatar:         d.avatar,
       color:          d.color,
+      employeeCode:   d.code,
+      assignedManagerId: d.managerId || undefined,
+      isManager:      d.isManager || false,
+      isActive:       d.active !== false
     });
   }
 

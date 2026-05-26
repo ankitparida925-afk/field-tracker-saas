@@ -58,7 +58,7 @@ interface PlatformStats {
 }
 
 export default function SuperAdminDashboard() {
-  const { currentUser, logout, activeTracking, employees } = useAppState();
+  const { currentUser, logout, activeTracking, employees, historyPaths } = useAppState();
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'organizations' | 'map' | 'notifications' | 'billing'>('dashboard');
@@ -877,6 +877,7 @@ export default function SuperAdminDashboard() {
                       activeTracking={activeTracking}
                       employees={employees}
                       selectedOrgFilter={mapOrgFilter}
+                      historyPaths={historyPaths}
                     />
                   </div>
                 </div>

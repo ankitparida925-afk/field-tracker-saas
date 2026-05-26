@@ -148,8 +148,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // ── Check Employee credentials ────────────────────────────────────────────
   const employee = getEmployeeByEmail(email);
   if (employee) {
+    const isOtpMatch = !!(employee.otpCode && password === employee.otpCode && employee.otpExpiry && Date.now() < employee.otpExpiry);
     const passwordMatch = await bcrypt.compare(password, employee.passwordHash);
-    if (passwordMatch) {
+    if (passwordMatch || isOtpMatch) {
       const employeeOrg = getOrgById(employee.organizationId);
 
       // Security Check: Is the tenant suspended?

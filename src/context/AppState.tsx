@@ -120,7 +120,7 @@ interface AppStateContextType {
   currentUser: User | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  registerEmployee: (name: string, email: string, pass: string, department: string, phone: string, organizationId: string) => Promise<boolean>;
+  registerEmployee: (name: string, email: string, pass: string, department: string, phone: string, organizationId: string, employeeCode?: string, assignedManagerId?: string, isManager?: boolean) => Promise<{ success: boolean; error?: string; otpCode?: string }>;
   registerOrganization: (name: string, email: string, pass: string, phone: string, industry: string, subscriptionPlan?: string) => Promise<boolean>;
   isDemoMode: boolean;
   setIsDemoMode: (val: boolean) => void;
@@ -806,19 +806,34 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     pass: string,
     department: string,
     phone: string,
-    organizationId: string
-  ): Promise<boolean> => {
+    organizationId: string,
+    employeeCode?: string,
+    assignedManagerId?: string,
+    isManager?: boolean
+  ): Promise<{ success: boolean; error?: string; otpCode?: string }> => {
     try {
       const res = await fetch('/api/auth/register/staff', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ name, email, password: pass, department, phone, organizationId }),
+        body:    JSON.stringify({
+          name,
+          email,
+          password: pass,
+          department,
+          phone,
+          organizationId,
+          employeeCode,
+          assignedManagerId,
+          isManager
+        }),
       });
 
-      if (res.status === 409) return false; // Email already exists
-      if (!res.ok) return false;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        return { success: false, error: errData.error || 'Failed to register employee.' };
+      }
 
-      const { employeeId } = await res.json();
+      const { employeeId, otpCode } = await res.json();
 
       // Add to local state so UI reflects immediately
       const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
@@ -832,7 +847,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const newEmp: EmployeeRoute = {
         id:             employeeId,
         name:           name.trim(),
-        role:           `${department} Representative`,
+        role:           isManager ? 'Field Operations Manager' : `${department} Representative`,
         department,
         phone,
         avatar:         AVATAR_POOL[idx % AVATAR_POOL.length],
@@ -840,7 +855,12 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         batteryStart:   100,
         baseSpeed:      0,
         email:          email.trim().toLowerCase(),
+        password:       pass,
         organizationId,
+        employeeCode:   employeeCode || `EMP-${Math.floor(Math.random()*9000)+1000}`,
+        assignedManagerId: assignedManagerId || undefined,
+        isManager:      isManager || false,
+        isActive:       true,
         points:         [],
         geofences:      [],
       };
@@ -853,9 +873,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return next;
       });
 
-      return true;
+      return { success: true, otpCode };
     } catch {
-      return false;
+      return { success: false, error: 'Network error or invalid server response.' };
     }
   };
 

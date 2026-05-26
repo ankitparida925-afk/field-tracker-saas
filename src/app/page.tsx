@@ -83,15 +83,11 @@ export default function LandingPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link href="/signup/organization" target="_blank"
+          <Link href="/signup/organization"
             className="hidden sm:flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-200 px-4 py-2 rounded-lg hover:bg-white/5 transition font-semibold">
             Register Org
           </Link>
-          <Link href="/signup/staff" target="_blank"
-            className="hidden sm:flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-200 px-4 py-2 rounded-lg hover:bg-white/5 transition font-semibold">
-            Join as Staff
-          </Link>
-          <Link href="/signin" target="_blank"
+          <Link href="/signin"
             className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-lg shadow-amber-600/20 active:scale-95">
             <LogIn size={13} /> Sign In
           </Link>
@@ -117,10 +113,10 @@ export default function LandingPage() {
           FieldTracker gives operations teams live GPS visibility, automated attendance, geofence breach alerts, and visit proof — all inside one secure, multi-tenant platform.
         </p>
 
-        {/* CTA CARDS ── the three portals */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl">
+        {/* CTA CARDS ── B2B portals */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-xl">
           {/* Organization Sign Up */}
-          <Link href="/signup/organization" target="_blank"
+          <Link href="/signup/organization"
             className="group flex flex-col items-center gap-3 p-6 rounded-2xl border border-white/8 bg-white/3 hover:bg-amber-600/10 hover:border-amber-500/40 transition-all duration-300 backdrop-blur-sm text-center cursor-pointer">
             <div className="bg-amber-500/10 border border-amber-500/25 p-3 rounded-xl group-hover:bg-amber-500/20 transition">
               <Building2 size={22} className="text-amber-400" />
@@ -134,30 +130,15 @@ export default function LandingPage() {
             </span>
           </Link>
 
-          {/* Staff Sign Up */}
-          <Link href="/signup/staff" target="_blank"
-            className="group flex flex-col items-center gap-3 p-6 rounded-2xl border border-white/8 bg-white/3 hover:bg-emerald-600/10 hover:border-emerald-500/40 transition-all duration-300 backdrop-blur-sm text-center cursor-pointer">
-            <div className="bg-emerald-500/10 border border-emerald-500/25 p-3 rounded-xl group-hover:bg-emerald-500/20 transition">
-              <UserPlus size={22} className="text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-white mb-1">Join as Field Staff</p>
-              <p className="text-[11px] text-stone-500 leading-relaxed">Create your operative profile and link to your company</p>
-            </div>
-            <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 group-hover:gap-2 transition-all">
-              Join Now <ChevronRight size={11} />
-            </span>
-          </Link>
-
           {/* Sign In */}
-          <Link href="/signin" target="_blank"
+          <Link href="/signin"
             className="group flex flex-col items-center gap-3 p-6 rounded-2xl border border-white/8 bg-white/3 hover:bg-yellow-600/10 hover:border-yellow-500/40 transition-all duration-300 backdrop-blur-sm text-center cursor-pointer">
             <div className="bg-yellow-500/10 border border-yellow-500/25 p-3 rounded-xl group-hover:bg-yellow-500/20 transition">
               <LogIn size={22} className="text-yellow-400" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white mb-1">Sign In</p>
-              <p className="text-[11px] text-stone-500 leading-relaxed">Access your admin console or employee field app</p>
+              <p className="text-sm font-bold text-white mb-1">Sign In Portal</p>
+              <p className="text-[11px] text-stone-500 leading-relaxed">Access your enterprise company workspace dashboard</p>
             </div>
             <span className="text-[10px] font-bold text-yellow-400 flex items-center gap-1 group-hover:gap-2 transition-all">
               Sign In <ChevronRight size={11} />
@@ -209,10 +190,10 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[
             { step: '01', title: 'Register Organization', desc: 'Sign up your company and get an instant admin dashboard with geofences and analytics.', href: '/signup/organization', color: 'indigo' },
-            { step: '02', title: 'Onboard Your Team', desc: 'Employees sign up, select your company, and appear on your live map immediately.', href: '/signup/staff', color: 'emerald' },
+            { step: '02', title: 'Internal Onboarding', desc: 'Add employees internally from your dashboard and provide their custom portal credentials.', href: '/signin', color: 'emerald' },
             { step: '03', title: 'Track & Manage', desc: 'Monitor live GPS, manage tasks, review attendance, and export reports anytime.', href: '/signin', color: 'blue' },
           ].map((s) => (
-            <Link key={s.step} href={s.href} target="_blank" className="group flex flex-col items-center gap-4 p-6 rounded-2xl border border-white/6 bg-white/2 hover:bg-white/4 hover:border-white/12 transition-all duration-300 backdrop-blur-sm cursor-pointer">
+            <Link key={s.step} href={s.href} className="group flex flex-col items-center gap-4 p-6 rounded-2xl border border-white/6 bg-white/2 hover:bg-white/4 hover:border-white/12 transition-all duration-300 backdrop-blur-sm cursor-pointer">
               <span className={`text-4xl font-black opacity-20 group-hover:opacity-40 transition text-${s.color}-400`}>{s.step}</span>
               <div>
                 <p className="text-sm font-bold text-stone-100 mb-2">{s.title}</p>

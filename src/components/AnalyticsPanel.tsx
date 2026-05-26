@@ -20,7 +20,10 @@ import {
   Layers,
   MapPin,
   Navigation,
-  Flame
+  Flame,
+  X,
+  AlertCircle,
+  Mail
 } from 'lucide-react';
 
 export const AnalyticsPanel: React.FC = () => {
@@ -45,13 +48,94 @@ export const AnalyticsPanel: React.FC = () => {
     clearAllAlerts,
     currentUser,
     draftTaskLocation,
-    setDraftTaskLocation
+    setDraftTaskLocation,
+    registerEmployee
   } = useAppState();
 
-  // ── Tenant-scoped data filters ──────────────────────────────────────────────
-  // All data arrays are sliced to only records belonging to the logged-in admin's org.
+  // Add Employee Form State
+  const [showAddEmpModal, setShowAddEmpModal] = useState(false);
+  const [newEmpName, setNewEmpName] = useState('');
+  const [newEmpEmail, setNewEmpEmail] = useState('');
+  const [newEmpPassword, setNewEmpPassword] = useState('');
+  const [newEmpPhone, setNewEmpPhone] = useState('');
+  const [newEmpDept, setNewEmpDept] = useState('Logistics Operations');
+  const [newEmpCode, setNewEmpCode] = useState('');
+  const [newEmpManagerId, setNewEmpManagerId] = useState('');
+  const [newEmpIsManager, setNewEmpIsManager] = useState(false);
+  const [newEmpError, setNewEmpError] = useState<string | null>(null);
+  const [newEmpSuccess, setNewEmpSuccess] = useState(false);
+  const [newEmpLoading, setNewEmpLoading] = useState(false);
+  const [activeOtp, setActiveOtp] = useState<string | null>(null);
+  const [activeOtpEmail, setActiveOtpEmail] = useState<string | null>(null);
+
+  const handleAddEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNewEmpError(null);
+    setNewEmpSuccess(false);
+
+    if (!newEmpName.trim() || !newEmpEmail.trim() || !newEmpPassword || !newEmpPhone.trim() || !newEmpCode.trim()) {
+      setNewEmpError('All fields (including Employee ID) are required.');
+      return;
+    }
+    if (newEmpPassword.length < 8 || !/[A-Z]/.test(newEmpPassword) || !/[0-9]/.test(newEmpPassword)) {
+      setNewEmpError('Password must be at least 8 characters and contain at least one uppercase letter and one number.');
+      return;
+    }
+    if (!currentUser?.organizationId) {
+      setNewEmpError('No active organization session found.');
+      return;
+    }
+
+    setNewEmpLoading(true);
+    try {
+      const result = await registerEmployee(
+        newEmpName.trim(),
+        newEmpEmail.trim().toLowerCase(),
+        newEmpPassword,
+        newEmpDept,
+        newEmpPhone.trim(),
+        currentUser.organizationId,
+        newEmpCode.trim(),
+        newEmpManagerId || undefined,
+        newEmpIsManager
+      );
+
+      if (result.success) {
+        if (result.otpCode) {
+          setActiveOtp(result.otpCode);
+          setActiveOtpEmail(newEmpEmail.trim().toLowerCase());
+        }
+        setNewEmpSuccess(true);
+        setNewEmpName('');
+        setNewEmpEmail('');
+        setNewEmpPassword('');
+        setNewEmpPhone('');
+        setNewEmpCode('');
+        setNewEmpManagerId('');
+        setNewEmpIsManager(false);
+        setNewEmpDept('Logistics Operations');
+        setTimeout(() => setShowAddEmpModal(false), 1500);
+      } else {
+        setNewEmpError(result.error || 'This email is already registered.');
+      }
+    } catch {
+      setNewEmpError('Failed to register employee.');
+    } finally {
+      setNewEmpLoading(false);
+    }
+  };
+
+  const currentUserEmployeeProfile = employees.find(e => e.id === currentUser?.employeeId);
+  const isCurrentUserManager = currentUser?.role === 'employee' && currentUserEmployeeProfile?.isManager === true;
+
   const tenantEmployees = employees.filter(
-    emp => emp && currentUser && emp.organizationId === currentUser.organizationId
+    emp => {
+      if (!emp || !currentUser || emp.organizationId !== currentUser.organizationId) return false;
+      if (isCurrentUserManager) {
+        return emp.assignedManagerId === currentUser.employeeId;
+      }
+      return true;
+    }
   );
   const tenantEmployeeIds = tenantEmployees.map(emp => emp.id);
   const tenantAttendance  = attendance.filter(a  => tenantEmployeeIds.includes(a.employeeId));
@@ -224,6 +308,19 @@ export const AnalyticsPanel: React.FC = () => {
         {/* VIEW: EMPLOYEES DIRECTORY */}
         {activeTab === 'employees' && (
           <div className="space-y-6">
+            <div className="flex justify-between items-center bg-stone-900/30 p-4 rounded-xl border border-white/5">
+              <div>
+                <h3 className="text-stone-100 font-extrabold text-sm uppercase tracking-wider">Operative Directory</h3>
+                <p className="text-[11px] text-stone-500">Currently active field staff profiles</p>
+              </div>
+              <button
+                onClick={() => setShowAddEmpModal(true)}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-md shadow-amber-600/10"
+              >
+                <Plus size={12} /> Add Employee
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {tenantEmployees.map(emp => {
                 const tracking = activeTracking[emp.id];
@@ -249,8 +346,19 @@ export const AnalyticsPanel: React.FC = () => {
                     </div>
 
                     <div className="flex-grow space-y-1">
-                      <h4 className="text-sm font-bold text-stone-100">{emp.name}</h4>
-                      <p className="text-stone-400 text-xs">{emp.role}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-sm font-bold text-stone-100">{emp.name}</h4>
+                        <span className="text-[9px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2 py-0.5 rounded-md font-extrabold uppercase tracking-wide">
+                          {emp.department || 'Field Ops'}
+                        </span>
+                      </div>
+                      <p className="text-stone-400 text-[11px] font-semibold">{emp.role}</p>
+                      <p className="text-stone-450 text-[10.5px] font-bold">🆔 ID: <span className="font-mono bg-stone-950 px-1.5 py-0.5 rounded border border-white/5 text-amber-400/95 text-[10px]">{emp.employeeCode || 'N/A'}</span></p>
+                      {emp.assignedManagerId && (
+                        <p className="text-stone-450 text-[10.5px] font-bold">👤 Manager: <span className="text-stone-300 font-semibold">{employees.find(e => e.id === emp.assignedManagerId)?.name || 'N/A'}</span></p>
+                      )}
+                      <p className="text-stone-500 text-[10.5px] font-bold">✉ {emp.email}</p>
+                      <p className="text-stone-500 text-[10.5px] font-bold">🔑 Passcode: <span className="font-mono bg-stone-950 px-1.5 py-0.5 rounded border border-white/5 text-amber-400/90 text-[10px]">{emp.password || '••••••••'}</span></p>
                       
                       <div className="flex flex-wrap gap-2 mt-2">
                         <span className="text-[10px] bg-stone-950 border border-white/5 text-stone-300 px-2 py-0.5 rounded-md font-semibold">
@@ -856,6 +964,227 @@ export const AnalyticsPanel: React.FC = () => {
         )}
 
       </div>
+
+      {/* FLOAT MODAL: REGISTER NEW EMPLOYEE (ADMIN LEVEL) */}
+      {showAddEmpModal && (
+        <div className="fixed inset-0 z-[1000] bg-stone-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-md p-6 relative animate-in fade-in zoom-in-95 duration-200">
+            
+            <button 
+              onClick={() => setShowAddEmpModal(false)}
+              className="absolute top-4 right-4 text-stone-500 hover:text-stone-300 p-1.5 hover:bg-white/5 rounded-xl transition cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="flex items-center gap-2.5 border-b border-white/5 pb-3 mb-4">
+              <div className="bg-amber-500/10 p-2 rounded-xl text-amber-400 border border-amber-500/20">
+                <Users size={16} />
+              </div>
+              <div>
+                <h2 className="text-sm font-black text-stone-100">Add New Operative</h2>
+                <p className="text-[10px] text-stone-500 uppercase font-extrabold tracking-widest mt-0.5 leading-none">Register staff for {currentUser?.organizationName || 'your company'}</p>
+              </div>
+            </div>
+
+            {newEmpError && (
+              <div className="bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs p-3 rounded-xl flex items-start gap-2.5 mb-4 font-bold">
+                <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
+                <span>{newEmpError}</span>
+              </div>
+            )}
+
+            {newEmpSuccess && (
+              <div className="bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs p-3 rounded-xl flex items-center gap-2.5 mb-4 font-bold">
+                <Check size={15} />
+                <span>Operative profile registered and synced!</span>
+              </div>
+            )}
+
+            <form onSubmit={handleAddEmployee} className="space-y-4 text-xs font-bold text-stone-400">
+              
+              <div className="space-y-1">
+                <label className="text-[10px] text-stone-450 uppercase tracking-wider font-extrabold">Employee Full Name *</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="e.g. Steve Harrington"
+                  value={newEmpName}
+                  onChange={e => setNewEmpName(e.target.value)}
+                  className="w-full bg-stone-950 border border-white/10 text-stone-200 px-3.5 py-2.5 rounded-xl outline-none focus:border-amber-500 font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-stone-450 uppercase tracking-wider font-extrabold">Operative Email Address *</label>
+                <input 
+                  type="email"
+                  required
+                  placeholder="steve@company.com"
+                  value={newEmpEmail}
+                  onChange={e => setNewEmpEmail(e.target.value)}
+                  className="w-full bg-stone-950 border border-white/10 text-stone-200 px-3.5 py-2.5 rounded-xl outline-none focus:border-amber-500 font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] text-stone-450 uppercase tracking-wider font-extrabold">Temporary Passcode *</label>
+                <input 
+                  type="password"
+                  required
+                  placeholder="Min 6 characters"
+                  value={newEmpPassword}
+                  onChange={e => setNewEmpPassword(e.target.value)}
+                  className="w-full bg-stone-950 border border-white/10 text-stone-200 px-3.5 py-2.5 rounded-xl outline-none focus:border-amber-500 font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-stone-455 uppercase tracking-wider font-extrabold">Employee ID (Code) *</label>
+                  <input 
+                    type="text"
+                    required
+                    placeholder="e.g. EMP-1001"
+                    value={newEmpCode}
+                    onChange={e => setNewEmpCode(e.target.value)}
+                    className="w-full bg-stone-950 border border-white/10 text-stone-200 px-3.5 py-2.5 rounded-xl outline-none focus:border-amber-500 font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-stone-455 uppercase tracking-wider font-extrabold">Assigned Manager</label>
+                  <select
+                    value={newEmpManagerId}
+                    onChange={e => setNewEmpManagerId(e.target.value)}
+                    className="w-full bg-stone-950 border border-white/10 text-stone-300 px-3.5 py-2.5 rounded-xl outline-none font-bold focus:border-amber-500"
+                  >
+                    <option value="" className="bg-stone-900">None (No Manager)</option>
+                    {tenantEmployees.filter(emp => emp.isManager).map(mgr => (
+                      <option key={mgr.id} value={mgr.id} className="bg-stone-900">{mgr.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 bg-stone-950/40 p-3 rounded-xl border border-white/5">
+                <input 
+                  type="checkbox"
+                  id="newEmpIsManager"
+                  checked={newEmpIsManager}
+                  onChange={e => setNewEmpIsManager(e.target.checked)}
+                  className="rounded bg-stone-950 border-white/10 text-amber-500 focus:ring-0 focus:ring-offset-0 cursor-pointer w-4 h-4"
+                />
+                <label htmlFor="newEmpIsManager" className="text-[11px] text-stone-300 cursor-pointer select-none">
+                  Designate as **Field Operations Manager** (Role-Based Access)
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-stone-450 uppercase tracking-wider font-extrabold">Department Assignment *</label>
+                  <select
+                    value={newEmpDept}
+                    onChange={e => setNewEmpDept(e.target.value)}
+                    className="w-full bg-stone-950 border border-white/10 text-stone-300 px-3.5 py-2.5 rounded-xl outline-none font-bold focus:border-amber-500"
+                  >
+                    <option value="Sales & Marketing" className="bg-stone-900">Sales & Marketing</option>
+                    <option value="Logistics Operations" className="bg-stone-900">Logistics Operations</option>
+                    <option value="Pharmaceuticals" className="bg-stone-900">Pharmaceuticals</option>
+                    <option value="Maintenance & Service" className="bg-stone-900">Maintenance & Service</option>
+                    <option value="Other" className="bg-stone-900">Other Department</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-stone-450 uppercase tracking-wider font-extrabold">Contact Phone *</label>
+                  <input 
+                    type="text"
+                    required
+                    placeholder="+1 (555) 000-0000"
+                    value={newEmpPhone}
+                    onChange={e => setNewEmpPhone(e.target.value)}
+                    className="w-full bg-stone-950 border border-white/10 text-stone-200 px-3.5 py-2.5 rounded-xl outline-none focus:border-amber-500 font-bold"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={newEmpLoading}
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-600/10 cursor-pointer active:scale-95 transition"
+              >
+                {newEmpLoading ? 'Registering...' : 'Establish Operative Profile'}
+              </button>
+
+            </form>
+          </div>
+        </div>
+      )}
+      {activeOtp && (
+        <div className="fixed inset-0 z-[1100] bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-amber-500/30 shadow-2xl rounded-2xl w-full max-w-md p-6 relative animate-in fade-in zoom-in-95 duration-200">
+            
+            <button 
+              onClick={() => { setActiveOtp(null); setActiveOtpEmail(null); }}
+              className="absolute top-4 right-4 text-stone-500 hover:text-stone-300 p-1.5 hover:bg-white/5 rounded-xl transition cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-white/5 pb-3">
+                <div className="bg-emerald-500/10 p-2 rounded-xl text-emerald-400 border border-emerald-500/20">
+                  <Mail size={16} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-black text-stone-100 font-sans">Simulated SMTP Email Dispatch</h2>
+                  <p className="text-[10px] text-stone-500 uppercase font-extrabold tracking-widest mt-0.5 leading-none">Security Telemetry Services</p>
+                </div>
+              </div>
+
+              <div className="bg-stone-950 p-4 rounded-xl border border-white/5 space-y-3 font-mono text-xs text-stone-300">
+                <div>
+                  <span className="text-stone-500">To:</span> {activeOtpEmail}
+                </div>
+                <div>
+                  <span className="text-stone-500">Subject:</span> [FieldTracker] Secure OTP Log In
+                </div>
+                <div className="border-t border-white/5 pt-3 space-y-2 font-sans text-stone-400">
+                  <p className="leading-relaxed">Welcome! Your administrator has successfully generated your operative profile.</p>
+                  <p className="leading-relaxed">Please use this secure One-Time Passcode (OTP) to log in to your portal:</p>
+                  <div className="bg-stone-900 border border-amber-500/30 rounded-xl p-4 text-center my-3 relative">
+                    <span className="text-2xl font-black font-mono tracking-[0.25em] text-amber-400 ml-[0.25em]">{activeOtp}</span>
+                  </div>
+                  <p className="text-[10px] text-stone-500 italic">This passcode is temporary and will expire in 10 minutes.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeOtp) {
+                      navigator.clipboard.writeText(activeOtp);
+                      alert(`Passcode ${activeOtp} copied to clipboard! You can now sign in using this passcode.`);
+                    }
+                  }}
+                  className="flex-grow bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 text-center cursor-pointer"
+                >
+                  📋 Copy OTP Passcode
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveOtp(null); setActiveOtpEmail(null); }}
+                  className="bg-stone-850 hover:bg-stone-800 text-stone-300 font-bold px-4 py-2.5 rounded-xl text-xs transition active:scale-95 text-center cursor-pointer border border-white/5"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

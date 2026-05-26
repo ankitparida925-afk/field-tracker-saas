@@ -43,10 +43,23 @@ const LiveMap: React.FC = () => {
   const isSuper = currentUser?.role === 'superadmin';
   const orgId = currentUser?.organizationId;
 
-  const employees = allEmployees.filter(e => isSuper || (orgId && e.organizationId === orgId));
-  const geofences = allGeofences.filter(g => isSuper || !g.employeeId || allEmployees.find(e => e.id === g.employeeId)?.organizationId === orgId);
-  const tasks = allTasks.filter(t => isSuper || allEmployees.find(e => e.id === t.employeeId)?.organizationId === orgId);
-  const visits = allVisits.filter(v => isSuper || allEmployees.find(e => e.id === v.employeeId)?.organizationId === orgId);
+  const currentUserEmployeeProfile = allEmployees.find(e => e.id === currentUser?.employeeId);
+  const isCurrentUserManager = currentUser?.role === 'employee' && currentUserEmployeeProfile?.isManager === true;
+
+  const employees = allEmployees.filter(e => {
+    if (!e) return false;
+    if (isSuper) return true;
+    if (!orgId || e.organizationId !== orgId) return false;
+    if (isCurrentUserManager) {
+      return e.assignedManagerId === currentUser?.employeeId;
+    }
+    return true;
+  });
+
+  const tenantEmployeeIds = employees.map(e => e.id);
+  const geofences = allGeofences.filter(g => isSuper || !g.employeeId || tenantEmployeeIds.includes(g.employeeId));
+  const tasks = allTasks.filter(t => isSuper || tenantEmployeeIds.includes(t.employeeId));
+  const visits = allVisits.filter(v => isSuper || tenantEmployeeIds.includes(v.employeeId));
 
   const containerRef  = useRef<HTMLDivElement>(null);
   const mapRef        = useRef<any>(null);
@@ -250,17 +263,21 @@ const LiveMap: React.FC = () => {
         markersRef.current[emp.id].setPopupContent(popup);
       }
 
-      // Route trail (history path line has been removed to satisfy user visual preferences)
-      /*
+      // Swiggy/Zomato style thin, solid movement trails
       const pts = (historyPaths[emp.id] || []).map((p: any) => [p.latitude, p.longitude] as [number, number]);
       if (pts.length > 1) {
         if (!routesRef.current[emp.id]) {
-          routesRef.current[emp.id] = L.polyline(pts, { color: emp.color, weight: 3, opacity: 0.7, dashArray: '6 8' }).addTo(map);
+          routesRef.current[emp.id] = L.polyline(pts, {
+            color: emp.color,
+            weight: 2.2,
+            opacity: 0.85,
+            lineJoin: 'round',
+            lineCap: 'round'
+          }).addTo(map);
         } else {
           routesRef.current[emp.id].setLatLngs(pts);
         }
       }
-      */
     });
 
     // Pan to selected employee (disabled in taskDropMode, drawMode, or when a draftTaskLocation is set, to prevent camera snaps away from user)

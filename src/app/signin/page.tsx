@@ -28,6 +28,30 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [tenantName, setTenantName] = useState('FieldTracker');
+  const [brandColor, setBrandColor] = useState('amber'); // amber | indigo | rose
+  const [logoText, setLogoText] = useState('FieldTracker Innovations+ Operations Portal');
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get('tenant')?.toLowerCase();
+      if (t === 'apex') {
+        setTenantName('Apex Logistics Solutions');
+        setBrandColor('indigo');
+        setLogoText('Apex Corporate Operations Portal');
+      } else if (t === 'med') {
+        setTenantName('MedVitals Pharma Distribution');
+        setBrandColor('rose');
+        setLogoText('MedVitals Security Telemetry Portal');
+      } else if (t === 'fti') {
+        setTenantName('FieldTracker Innovations+');
+        setBrandColor('amber');
+        setLogoText('FieldTracker Innovations+ Operations Portal');
+      }
+    }
+  }, []);
+
   React.useEffect(() => { setMounted(true); }, []);
   React.useEffect(() => {
     if (mounted && currentUser) {
@@ -37,10 +61,10 @@ export default function SignInPage() {
       } else if (currentUser.role === 'admin') {
         url = '/admin';
       }
-      // Open dashboard in a new tab
-      window.open(url, '_blank');
+      // Redirect cleanly in the exact same tab
+      router.replace(url);
     }
-  }, [mounted, currentUser]);
+  }, [mounted, currentUser, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,8 +111,8 @@ export default function SignInPage() {
     <div className="min-h-screen w-full bg-[#0f0a06] flex items-center justify-center p-4 relative overflow-hidden py-10">
 
       {/* Background glows */}
-      <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] rounded-full bg-amber-600/8 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-yellow-600/8 blur-[100px] pointer-events-none" />
+      <div className={`absolute top-1/4 left-1/4 w-[400px] h-[400px] rounded-full ${brandColor === 'indigo' ? 'bg-indigo-600/8' : brandColor === 'rose' ? 'bg-rose-600/8' : 'bg-amber-600/8'} blur-[120px] pointer-events-none`} />
+      <div className={`absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full ${brandColor === 'indigo' ? 'bg-slate-600/8' : brandColor === 'rose' ? 'bg-yellow-600/8' : 'bg-yellow-600/8'} blur-[100px] pointer-events-none`} />
 
       <div className="w-full max-w-md z-10 space-y-5">
 
@@ -99,18 +123,18 @@ export default function SignInPage() {
 
         {/* Brand */}
         <div className="text-center space-y-2">
-          <div className="inline-flex bg-amber-600/10 border border-amber-500/25 p-3 rounded-2xl text-amber-400 shadow-xl shadow-amber-600/5">
+          <div className={`inline-flex ${brandColor === 'indigo' ? 'bg-indigo-600/10 border-indigo-500/25 text-indigo-400 shadow-indigo-600/5' : brandColor === 'rose' ? 'bg-rose-600/10 border-rose-500/25 text-rose-400 shadow-rose-600/5' : 'bg-amber-600/10 border-amber-500/25 text-amber-400 shadow-amber-600/5'} border p-3 rounded-2xl shadow-xl`}>
             <Activity size={24} className="animate-pulse" />
           </div>
-          <h1 className="text-xl font-black text-white">Sign In to FieldTracker</h1>
-          <p className="text-[11px] text-stone-500 uppercase tracking-widest font-bold">FieldTracker Innovations+ Operations Portal</p>
+          <h1 className="text-xl font-black text-white">Sign In to {tenantName}</h1>
+          <p className="text-[11px] text-stone-500 uppercase tracking-widest font-bold">{logoText}</p>
         </div>
 
         {/* Glass Card */}
         <div className="bg-stone-950/60 backdrop-blur-xl border border-white/8 rounded-2xl p-7 shadow-2xl space-y-5">
 
           <div>
-            <h2 className="text-sm font-bold text-stone-100">Portal Authentication</h2>
+            <h2 className="text-sm font-bold text-stone-200">Portal Authentication</h2>
             <p className="text-[11px] text-stone-500 mt-0.5">Enter your credentials to access your dashboard or field app.</p>
           </div>
 
@@ -128,7 +152,7 @@ export default function SignInPage() {
             <div className="space-y-1.5">
               <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Email Address</label>
               <div className="relative">
-                <Mail size={14} className="absolute left-3.5 top-1/2 -transtone-y-1/2 text-stone-500 pointer-events-none" />
+                <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
                 <input
                   type="email"
                   value={email}
@@ -136,7 +160,7 @@ export default function SignInPage() {
                   placeholder="name@company.com"
                   disabled={loading}
                   autoComplete="username"
-                  className="w-full bg-stone-950/80 border border-white/10 text-stone-200 text-xs pl-10 pr-4 py-3 rounded-xl outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition disabled:opacity-50"
+                  className={`w-full bg-stone-950/80 border border-white/10 text-stone-200 text-xs pl-10 pr-4 py-3 rounded-xl outline-none focus:${brandColor === 'indigo' ? 'border-indigo-500' : brandColor === 'rose' ? 'border-rose-500' : 'border-amber-500'} focus:ring-1 focus:ring-${brandColor === 'indigo' ? 'indigo-500/50' : brandColor === 'rose' ? 'rose-500/50' : 'amber-500/50'} transition disabled:opacity-50`}
                 />
               </div>
             </div>
@@ -144,7 +168,7 @@ export default function SignInPage() {
             <div className="space-y-1.5">
               <label className="text-[11px] text-stone-400 uppercase tracking-wider font-bold">Password</label>
               <div className="relative">
-                <Lock size={14} className="absolute left-3.5 top-1/2 -transtone-y-1/2 text-stone-500 pointer-events-none" />
+                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
                 <input
                   type="password"
                   value={password}
@@ -152,7 +176,7 @@ export default function SignInPage() {
                   placeholder="••••••••"
                   disabled={loading}
                   autoComplete="current-password"
-                  className="w-full bg-stone-950/80 border border-white/10 text-stone-200 text-xs pl-10 pr-4 py-3 rounded-xl outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition disabled:opacity-50"
+                  className={`w-full bg-stone-950/80 border border-white/10 text-stone-200 text-xs pl-10 pr-4 py-3 rounded-xl outline-none focus:${brandColor === 'indigo' ? 'border-indigo-500' : brandColor === 'rose' ? 'border-rose-500' : 'border-amber-500'} focus:ring-1 focus:ring-${brandColor === 'indigo' ? 'indigo-500/50' : brandColor === 'rose' ? 'rose-500/50' : 'amber-500/50'} transition disabled:opacity-50`}
                 />
               </div>
             </div>
@@ -160,7 +184,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-600/20 active:scale-95 transition disabled:opacity-50 disabled:scale-100 cursor-pointer"
+              className={`w-full ${brandColor === 'indigo' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : brandColor === 'rose' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20' : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'} text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition disabled:opacity-50 disabled:scale-100 cursor-pointer`}
             >
               {loading ? (
                 <><span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> Validating...</>
@@ -220,13 +244,9 @@ export default function SignInPage() {
         </div>
 
         {/* Redirect links */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-[11px]">
-          <Link href="/signup/organization" target="_blank" className="flex items-center gap-1.5 text-stone-500 hover:text-amber-400 transition font-semibold">
-            <Building2 size={12} /> Register Organization
-          </Link>
-          <span className="hidden sm:block text-stone-700">·</span>
-          <Link href="/signup/staff" target="_blank" className="flex items-center gap-1.5 text-stone-500 hover:text-emerald-400 transition font-semibold">
-            <UserPlus size={12} /> Join as Field Staff
+        <div className="flex items-center justify-center gap-2 text-[11px]">
+          <Link href="/signup/organization" className="flex items-center gap-1.5 text-stone-500 hover:text-amber-400 transition font-semibold">
+            <Building2 size={12} /> Register Organization Tenant
           </Link>
         </div>
 

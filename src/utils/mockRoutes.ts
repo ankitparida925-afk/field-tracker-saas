@@ -1,4 +1,4 @@
-﻿export interface RoutePoint {
+export interface RoutePoint {
   lat: number;
   lng: number;
   name: string;
@@ -30,6 +30,10 @@ export interface EmployeeRoute {
     radius: number; // meters
     type: 'client' | 'territory' | 'restricted';
   }[];
+  employeeCode?: string;
+  assignedManagerId?: string;
+  isManager?: boolean;
+  isActive?: boolean;
 }
 
 export const mockEmployees: EmployeeRoute[] = [
@@ -46,6 +50,9 @@ export const mockEmployees: EmployeeRoute[] = [
     email: 'rahul@fti.com',
     password: 'rahul123',
     organizationId: 'org-fti',
+    employeeCode: 'MGR-1001',
+    isManager: true,
+    isActive: true,
     geofences: [
       { id: 'geo-1-office', name: 'HQ Office', lat: 37.7749, lng: -122.4194, radius: 100, type: 'territory' },
       { id: 'geo-1-client-a', name: 'Apex Corp (Client A)', lat: 37.7824, lng: -122.4124, radius: 80, type: 'client' },
@@ -80,6 +87,9 @@ export const mockEmployees: EmployeeRoute[] = [
     email: 'sarah@fti.com',
     password: 'sarah123',
     organizationId: 'org-fti',
+    employeeCode: 'EMP-2002',
+    assignedManagerId: 'emp-1',
+    isActive: true,
     geofences: [
       { id: 'geo-2-clinic', name: 'General Hospital', lat: 37.7649, lng: -122.4494, radius: 120, type: 'client' },
       { id: 'geo-2-med-center', name: 'Mission Health Clinic', lat: 37.7594, lng: -122.4354, radius: 90, type: 'client' }
@@ -108,6 +118,9 @@ export const mockEmployees: EmployeeRoute[] = [
     email: 'amit@fti.com',
     password: 'amit123',
     organizationId: 'org-fti',
+    employeeCode: 'EMP-2003',
+    assignedManagerId: 'emp-1',
+    isActive: true,
     geofences: [
       { id: 'geo-3-wharfs', name: 'Pier 39 Logistics Hub', lat: 37.8080, lng: -122.4100, radius: 150, type: 'territory' },
       { id: 'geo-3-drop-a', name: 'Gourmet Foods Inc', lat: 37.8054, lng: -122.4194, radius: 70, type: 'client' },
@@ -137,6 +150,9 @@ export const mockEmployees: EmployeeRoute[] = [
     email: 'carlos@fti.com',
     password: 'carlos123',
     organizationId: 'org-fti',
+    employeeCode: 'EMP-2004',
+    assignedManagerId: 'emp-1',
+    isActive: true,
     geofences: [
       { id: 'geo-4-client-a', name: 'Western Power Grid', lat: 37.7712, lng: -122.4284, radius: 95, type: 'client' }
     ],

@@ -121,7 +121,7 @@ interface AppStateContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   registerEmployee: (name: string, email: string, pass: string, department: string, phone: string, organizationId: string, employeeCode?: string, assignedManagerId?: string, isManager?: boolean) => Promise<{ success: boolean; error?: string; otpCode?: string }>;
-  registerOrganization: (name: string, email: string, pass: string, phone: string, industry: string, subscriptionPlan?: string) => Promise<boolean>;
+  registerOrganization: (name: string, email: string, pass: string, phone: string, industry: string, subscriptionPlan?: string) => Promise<{ success: boolean; error?: string }>;
   isDemoMode: boolean;
   setIsDemoMode: (val: boolean) => void;
   // Simulator triggers
@@ -887,7 +887,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     phone: string,
     industry: string,
     subscriptionPlan: string = 'FREE_TRIAL'
-  ): Promise<boolean> => {
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch('/api/auth/register/org', {
         method:  'POST',
@@ -895,8 +895,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         body:    JSON.stringify({ name, email, password: pass, phone, industry, subscriptionPlan }),
       });
 
-      if (res.status === 409) return false; // Email already exists
-      if (!res.ok) return false;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        return { success: false, error: errData.error || 'Failed to register organization.' };
+      }
 
       const { orgId } = await res.json();
 
@@ -918,9 +920,9 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return next;
       });
 
-      return true;
+      return { success: true };
     } catch {
-      return false;
+      return { success: false, error: 'Network error or invalid server response.' };
     }
   };
 

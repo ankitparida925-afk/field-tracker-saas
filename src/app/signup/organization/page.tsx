@@ -52,8 +52,8 @@ export default function OrganizationSignUpPage() {
     if (!orgName || !orgEmail || !orgPassword || !orgPhone) {
       setError('Please fill in all required fields.'); return;
     }
-    if (orgPassword.length < 6) {
-      setError('Password must be at least 6 characters.'); return;
+    if (orgPassword.length < 8 || !/[A-Z]/.test(orgPassword) || !/[0-9]/.test(orgPassword)) {
+      setError('Password must be at least 8 characters and contain at least one uppercase letter and one number.'); return;
     }
     if (orgPassword !== orgConfirmPass) {
       setError('Passwords do not match.'); return;
@@ -61,12 +61,12 @@ export default function OrganizationSignUpPage() {
     setError(null);
     setLoading(true);
     try {
-      const ok = await registerOrganization(orgName.trim(), orgEmail.trim().toLowerCase(), orgPassword, orgPhone.trim(), orgIndustry, orgPlan);
-      if (ok) {
+      const result = await registerOrganization(orgName.trim(), orgEmail.trim().toLowerCase(), orgPassword, orgPhone.trim(), orgIndustry, orgPlan);
+      if (result.success) {
         setSuccess(`"${orgName}" workspace created! You can now sign in as Admin.`);
         setTimeout(() => router.push('/signin'), 2500);
       } else {
-        setError('That email address is already registered.');
+        setError(result.error || 'That email address is already registered.');
       }
     } catch {
       setError('An error occurred during registration.');

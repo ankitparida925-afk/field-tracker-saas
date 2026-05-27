@@ -21,6 +21,7 @@ export interface User {
   employeeId?: string;
   organizationId?: string;
   organizationName?: string;
+  needsPasswordSetup?: boolean;
 }
 
 export interface Organization {
@@ -122,6 +123,8 @@ interface AppStateContextType {
   logout: () => void;
   registerEmployee: (name: string, email: string, pass: string, department: string, phone: string, organizationId: string, employeeCode?: string, assignedManagerId?: string, isManager?: boolean) => Promise<{ success: boolean; error?: string; otpCode?: string }>;
   registerOrganization: (name: string, email: string, pass: string, phone: string, industry: string, subscriptionPlan?: string) => Promise<{ success: boolean; error?: string }>;
+  setupEmployeePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
+  deleteEmployee: (id: string) => Promise<{ success: boolean; error?: string }>;
   isDemoMode: boolean;
   setIsDemoMode: (val: boolean) => void;
   // Simulator triggers
@@ -388,6 +391,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 employeeId:       user.employeeId,
                 organizationId:   user.organizationId,
                 organizationName: user.organizationName,
+                needsPasswordSetup: !!user.needsPasswordSetup,
               };
               setCurrentUser(authedUser);
               localStorage.setItem('field_tracker_user', JSON.stringify(authedUser));
@@ -752,6 +756,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         employeeId:       user.employeeId,
         organizationId:   user.organizationId,
         organizationName: user.organizationName,
+        needsPasswordSetup: !!user.needsPasswordSetup,
       };
 
       setCurrentUser(authedUser);
@@ -879,6 +884,33 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const deleteEmployee = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/register/staff', {
+        method:  'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ id }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        return { success: false, error: errData.error || 'Failed to delete employee.' };
+      }
+
+      setEmployees(prev => {
+        const next = prev.filter(emp => emp.id !== id);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('field_tracker_employees', JSON.stringify(next));
+        }
+        return next;
+      });
+
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Network error or invalid server response.' };
+    }
+  };
+
   // ── Org registration via POST /api/auth/register/org ──────────────────────
   const registerOrganization = async (
     name: string,
@@ -918,6 +950,51 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           localStorage.setItem('field_tracker_organizations', JSON.stringify(next));
         }
         return next;
+      });
+
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Network error or invalid server response.' };
+    }
+  };
+
+  const setupEmployeePassword = async (password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!currentUser?.employeeId) {
+        return { success: false, error: 'No active employee session found.' };
+      }
+      const res = await fetch('/api/auth/setup-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId: currentUser.employeeId, password }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        return { success: false, error: errData.error || 'Failed to setup password.' };
+      }
+
+      // Update local state and storage
+      setEmployees(prev => {
+        const next = prev.map(emp => {
+          if (emp.id === currentUser.employeeId) {
+            return { ...emp, password, needsPasswordSetup: false };
+          }
+          return emp;
+        });
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('field_tracker_employees', JSON.stringify(next));
+        }
+        return next;
+      });
+
+      setCurrentUser(prev => {
+        if (!prev) return null;
+        const updated = { ...prev, needsPasswordSetup: false };
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('field_tracker_user', JSON.stringify(updated));
+        }
+        return updated;
       });
 
       return { success: true };
@@ -1587,6 +1664,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         logout,
         registerEmployee,
         registerOrganization,
+        setupEmployeePassword,
+        deleteEmployee,
         isDemoMode,
         setIsDemoMode,
         startShift,

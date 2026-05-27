@@ -76,6 +76,18 @@ const SuperAdminMap: React.FC<SuperAdminMapProps> = ({
         });
         mapRef.current = map;
 
+        // Dynamically center map on Super Admin's live browser location
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const { latitude, longitude } = pos.coords;
+              map.setView([latitude, longitude], 12);
+            },
+            (err) => console.log('SuperAdmin map dynamic centering failed:', err.message),
+            { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
+          );
+        }
+
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
           maxZoom: 20,
           keepBuffer: 4,

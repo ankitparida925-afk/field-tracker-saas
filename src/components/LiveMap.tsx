@@ -139,6 +139,18 @@ const LiveMap: React.FC = () => {
         attributionControl: false,
       });
 
+      // Dynamically center map on the Admin's live browser location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude } = pos.coords;
+            map.setView([latitude, longitude], 13);
+          },
+          (err) => console.log('Dynamic map centering geolocation denied/failed:', err.message),
+          { enableHighAccuracy: false, timeout: 4000, maximumAge: 60000 }
+        );
+      }
+
       const dark = L.tileLayer(
         'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
         { subdomains: 'abcd', maxZoom: 20, keepBuffer: 4, updateWhenIdle: false }

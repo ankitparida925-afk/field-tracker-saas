@@ -149,7 +149,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const employee = getEmployeeByEmail(email);
   if (employee) {
     const isOtpMatch = !!(employee.otpCode && password === employee.otpCode && employee.otpExpiry && Date.now() < employee.otpExpiry);
-    const passwordMatch = await bcrypt.compare(password, employee.passwordHash);
+    const passwordMatch = employee.needsPasswordSetup ? false : await bcrypt.compare(password, employee.passwordHash);
     if (passwordMatch || isOtpMatch) {
       const employeeOrg = getOrgById(employee.organizationId);
 
@@ -184,6 +184,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           employeeId:       employee.id,
           organizationId:   employee.organizationId,
           organizationName: employeeOrg?.name ?? 'FieldTracker Innovations+',
+          needsPasswordSetup: !!employee.needsPasswordSetup,
         },
       });
 

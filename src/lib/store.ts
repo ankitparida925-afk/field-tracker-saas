@@ -43,6 +43,7 @@ export interface StoredEmployee {
   isActive?:      boolean;
   otpCode?:       string;
   otpExpiry?:     number;
+  needsPasswordSetup?: boolean;
 }
 
 export interface StoredSuperAdmin {
@@ -162,7 +163,8 @@ export async function seedStore(): Promise<void> {
       employeeCode:   d.code,
       assignedManagerId: d.managerId || undefined,
       isManager:      d.isManager || false,
-      isActive:       d.active !== false
+      isActive:       d.active !== false,
+      needsPasswordSetup: false
     });
   }
 
@@ -263,6 +265,11 @@ export function getEmployeesByOrg(orgId: string): StoredEmployee[] {
 export function addEmployee(emp: StoredEmployee): void {
   employees.set(emp.id, emp);
 }
+
+export function deleteEmployee(id: string): boolean {
+  return employees.delete(id);
+}
+
 
 export function employeeEmailExists(email: string): boolean {
   return !!getEmployeeByEmail(email);

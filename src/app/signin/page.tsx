@@ -15,7 +15,9 @@ import {
   User,
   ChevronLeft,
   Building2,
-  UserPlus
+  UserPlus,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function SignInPage() {
@@ -25,6 +27,7 @@ export default function SignInPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -170,14 +173,21 @@ export default function SignInPage() {
               <div className="relative">
                 <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   disabled={loading}
                   autoComplete="current-password"
-                  className={`w-full bg-stone-950/80 border border-white/10 text-stone-200 text-xs pl-10 pr-4 py-3 rounded-xl outline-none focus:${brandColor === 'indigo' ? 'border-indigo-500' : brandColor === 'rose' ? 'border-rose-500' : 'border-amber-500'} focus:ring-1 focus:ring-${brandColor === 'indigo' ? 'indigo-500/50' : brandColor === 'rose' ? 'rose-500/50' : 'amber-500/50'} transition disabled:opacity-50`}
+                  className={`w-full bg-stone-950/80 border border-white/10 text-stone-200 text-xs pl-10 pr-10 py-3 rounded-xl outline-none focus:${brandColor === 'indigo' ? 'border-indigo-500' : brandColor === 'rose' ? 'border-rose-500' : 'border-amber-500'} focus:ring-1 focus:ring-${brandColor === 'indigo' ? 'indigo-500/50' : brandColor === 'rose' ? 'rose-500/50' : 'amber-500/50'} transition disabled:opacity-50`}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-300 transition focus:outline-none cursor-pointer"
+                >
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
               </div>
             </div>
 

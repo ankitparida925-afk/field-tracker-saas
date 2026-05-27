@@ -13,6 +13,8 @@ import {
   employeeEmailExists,
   addEmployee,
   getOrgById,
+  deleteEmployee,
+  getEmployeeById,
 } from '@/lib/store';
 
 function validatePassword(pass: string): string | null {
@@ -42,19 +44,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { name, email, password, department, phone, organizationId, employeeCode, assignedManagerId, isManager } = body;
+  const { name, email, department, phone, organizationId, employeeCode, assignedManagerId, isManager } = body;
 
-  if (!name?.trim() || !email?.trim() || !password || !phone?.trim() || !organizationId) {
+  if (!name?.trim() || !email?.trim() || !phone?.trim() || !organizationId) {
     return NextResponse.json({ error: 'All fields are required.' }, { status: 400 });
   }
 
   const cleanEmail = email.trim().toLowerCase();
-
-  // Password complexity
-  const passError = validatePassword(password);
-  if (passError) {
-    return NextResponse.json({ error: passError }, { status: 422 });
-  }
 
   // Org must exist
   if (!getOrgById(organizationId)) {
@@ -68,7 +64,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const empId       = `emp-${Date.now()}`;
   const idx         = Math.floor(Math.random() * COLOR_POOL.length);
-  const passwordHash = await bcrypt.hash(password, 12);
+  
+  // Generate random complex temporary password hash to make it secure
+  const randomPass = Math.random().toString(36).slice(-12) + 'A1!';
+  const passwordHash = await bcrypt.hash(randomPass, 12);
   const otpCode = String(Math.floor(100000 + Math.random() * 900000));
   const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
@@ -105,8 +104,38 @@ Note: This passcode is temporary and expires in 10 minutes.
     isManager:      !!isManager,
     isActive:       true,
     otpCode,
-    otpExpiry
+    otpExpiry,
+    needsPasswordSetup: true
   });
 
   return NextResponse.json({ employeeId: empId, otpCode }, { status: 201 });
 }
+
+export async function DELETE(req: NextRequest): Promise<NextResponse> {
+  await seedStore();
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+  }
+
+  const { id } = body;
+  if (!id) {
+    return NextResponse.json({ error: 'Employee ID is required.' }, { status: 400 });
+  }
+
+  const emp = getEmployeeById(id);
+  if (!emp) {
+    return NextResponse.json({ error: 'Employee not found.' }, { status: 404 });
+  }
+
+  const success = deleteEmployee(id);
+  if (success) {
+    return NextResponse.json({ success: true });
+  } else {
+    return NextResponse.json({ error: 'Failed to delete employee.' }, { status: 500 });
+  }
+}
+

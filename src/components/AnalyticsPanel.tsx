@@ -49,7 +49,8 @@ export const AnalyticsPanel: React.FC = () => {
     currentUser,
     draftTaskLocation,
     setDraftTaskLocation,
-    registerEmployee
+    registerEmployee,
+    deleteEmployee
   } = useAppState();
 
   // Add Employee Form State
@@ -68,17 +69,36 @@ export const AnalyticsPanel: React.FC = () => {
   const [activeOtp, setActiveOtp] = useState<string | null>(null);
   const [activeOtpEmail, setActiveOtpEmail] = useState<string | null>(null);
 
+  // Remove Employee States
+  const [empToDelete, setEmpToDelete] = useState<any | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleDeleteEmployee = async () => {
+    if (!empToDelete) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const result = await deleteEmployee(empToDelete.id);
+      if (result.success) {
+        setEmpToDelete(null);
+      } else {
+        setDeleteError(result.error || 'Failed to remove employee.');
+      }
+    } catch {
+      setDeleteError('An unexpected error occurred.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     setNewEmpError(null);
     setNewEmpSuccess(false);
 
-    if (!newEmpName.trim() || !newEmpEmail.trim() || !newEmpPassword || !newEmpPhone.trim() || !newEmpCode.trim()) {
+    if (!newEmpName.trim() || !newEmpEmail.trim() || !newEmpPhone.trim() || !newEmpCode.trim()) {
       setNewEmpError('All fields (including Employee ID) are required.');
-      return;
-    }
-    if (newEmpPassword.length < 8 || !/[A-Z]/.test(newEmpPassword) || !/[0-9]/.test(newEmpPassword)) {
-      setNewEmpError('Password must be at least 8 characters and contain at least one uppercase letter and one number.');
       return;
     }
     if (!currentUser?.organizationId) {
@@ -91,7 +111,7 @@ export const AnalyticsPanel: React.FC = () => {
       const result = await registerEmployee(
         newEmpName.trim(),
         newEmpEmail.trim().toLowerCase(),
-        newEmpPassword,
+        "", // password generated automatically on the server
         newEmpDept,
         newEmpPhone.trim(),
         currentUser.organizationId,
@@ -393,6 +413,12 @@ export const AnalyticsPanel: React.FC = () => {
                           Check Out
                         </button>
                       )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEmpToDelete(emp); }}
+                        className="bg-stone-800 hover:bg-rose-950/40 hover:text-rose-400 text-stone-400 text-[10px] font-bold px-2.5 py-1 rounded border border-white/5 transition flex items-center justify-center gap-1 mt-1 cursor-pointer"
+                      >
+                        <Trash2 size={10} /> Remove
+                      </button>
                     </div>
                   </div>
                 );
@@ -1027,17 +1053,7 @@ export const AnalyticsPanel: React.FC = () => {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] text-stone-450 uppercase tracking-wider font-extrabold">Temporary Passcode *</label>
-                <input 
-                  type="password"
-                  required
-                  placeholder="Min 6 characters"
-                  value={newEmpPassword}
-                  onChange={e => setNewEmpPassword(e.target.value)}
-                  className="w-full bg-stone-950 border border-white/10 text-stone-200 px-3.5 py-2.5 rounded-xl outline-none focus:border-amber-500 font-bold"
-                />
-              </div>
+
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -1179,6 +1195,60 @@ export const AnalyticsPanel: React.FC = () => {
                   className="bg-stone-850 hover:bg-stone-800 text-stone-300 font-bold px-4 py-2.5 rounded-xl text-xs transition active:scale-95 text-center cursor-pointer border border-white/5"
                 >
                   Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {empToDelete && (
+        <div className="fixed inset-0 z-[1100] bg-stone-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-rose-500/30 shadow-2xl rounded-2xl w-full max-w-sm p-6 relative animate-in fade-in zoom-in-95 duration-200">
+            
+            <button 
+              onClick={() => { setEmpToDelete(null); setDeleteError(null); }}
+              className="absolute top-4 right-4 text-stone-500 hover:text-stone-300 p-1.5 hover:bg-white/5 rounded-xl transition cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-white/5 pb-3">
+                <div className="bg-rose-500/10 p-2 rounded-xl text-rose-400 border border-rose-500/20">
+                  <AlertOctagon size={16} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-black text-stone-100 font-sans">Remove Operative Profile</h2>
+                  <p className="text-[10px] text-stone-500 uppercase font-extrabold tracking-widest mt-0.5 leading-none">Security Access Revocation</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-stone-400 leading-relaxed font-semibold">
+                Are you sure you want to remove <span className="text-stone-200 font-bold">{empToDelete.name}</span>? This action will revoke their login access and delete their telemetry profile from active directory.
+              </p>
+
+              {deleteError && (
+                <div className="bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[10.5px] p-3 rounded-xl flex items-start gap-2.5 font-bold">
+                  <AlertCircle size={14} className="mt-0.5 flex-shrink-0 text-rose-500" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  disabled={deleteLoading}
+                  onClick={handleDeleteEmployee}
+                  className="flex-grow bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl text-xs transition active:scale-95 text-center cursor-pointer shadow-lg shadow-rose-600/10"
+                >
+                  {deleteLoading ? 'Removing...' : 'Confirm Revocation'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEmpToDelete(null); setDeleteError(null); }}
+                  className="bg-stone-850 hover:bg-stone-800 text-stone-300 font-bold px-4 py-2.5 rounded-xl text-xs transition active:scale-95 text-center cursor-pointer border border-white/5"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

@@ -6,7 +6,8 @@ import { useAppState } from '../../context/AppState';
 import {
   MapPin, LogOut, Navigation, Battery, Zap, Wifi, WifiOff,
   Clock, CheckCircle, AlertTriangle, Play, Square, Activity,
-  User, Building, Radio, ClipboardList, Navigation2
+  User, Building, Radio, ClipboardList, Navigation2, Lock,
+  Eye, EyeOff
 } from 'lucide-react';
 
 const GPS_INTERVAL_MS = 5000; // Ping every 5 seconds
@@ -24,7 +25,7 @@ export default function EmployeePage() {
     currentUser, logout,
     employees, activeTracking,
     startShift, endShift, injectGPSPing, setGPSSource,
-    alerts, tasks, completeTask
+    alerts, tasks, completeTask, setupEmployeePassword
   } = useAppState();
 
   const router = useRouter();
@@ -33,6 +34,14 @@ export default function EmployeePage() {
   const [gpsError,   setGpsError]   = React.useState('');
   const [accuracy,   setAccuracy]   = React.useState<number|null>(null);
   const [pingCount,  setPingCount]  = React.useState(0);
+  
+  // Password Setup States
+  const [setupPass, setSetupPass] = React.useState('');
+  const [setupConfirmPass, setSetupConfirmPass] = React.useState('');
+  const [setupError, setSetupError] = React.useState<string | null>(null);
+  const [setupSuccess, setSetupSuccess] = React.useState(false);
+  const [setupLoading, setSetupLoading] = React.useState(false);
+  const [showSetupPassword, setShowSetupPassword] = React.useState(false);
   const [lastPingAt, setLastPingAt] = React.useState<Date|null>(null);
   const [secondsAgo, setSecondsAgo] = React.useState(0);
 
@@ -155,6 +164,41 @@ export default function EmployeePage() {
 
   // Cleanup on unmount
   React.useEffect(() => () => stopTracking(), [stopTracking]);
+
+  const handleSetupPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSetupError(null);
+    setSetupSuccess(false);
+
+    if (!setupPass || !setupConfirmPass) {
+      setSetupError('Please fill in all fields.');
+      return;
+    }
+    if (setupPass.length < 8 || !/[A-Z]/.test(setupPass) || !/[0-9]/.test(setupPass)) {
+      setSetupError('Password must be at least 8 characters and contain at least one uppercase letter and one number.');
+      return;
+    }
+    if (setupPass !== setupConfirmPass) {
+      setSetupError('Passwords do not match.');
+      return;
+    }
+
+    setSetupLoading(true);
+    try {
+      const result = await setupEmployeePassword(setupPass);
+      if (result.success) {
+        setSetupSuccess(true);
+        setSetupPass('');
+        setSetupConfirmPass('');
+      } else {
+        setSetupError(result.error || 'Failed to setup password.');
+      }
+    } catch {
+      setSetupError('An error occurred during password setup.');
+    } finally {
+      setSetupLoading(false);
+    }
+  };
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (!mounted || !currentUser) {
@@ -415,6 +459,86 @@ export default function EmployeePage() {
             </span>
           </div>
         )}
+
+      {currentUser.needsPasswordSetup && (
+        <div className="fixed inset-0 z-[2000] bg-stone-950/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-amber-500/30 shadow-2xl rounded-2xl w-full max-w-sm p-6 relative animate-in fade-in zoom-in-95 duration-200">
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-white/5 pb-3">
+                <div className="bg-amber-500/10 p-2 rounded-xl text-amber-400 border border-amber-500/20">
+                  <Lock size={16} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-black text-stone-100 font-sans">Establish Secure Credentials</h2>
+                  <p className="text-[10px] text-stone-500 uppercase font-extrabold tracking-widest mt-0.5 leading-none">First-Time Portal Authentication</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-stone-400 leading-relaxed font-semibold">
+                Welcome! For security compliance, you must establish a private personal password. The organization administrator cannot set this for you.
+              </p>
+
+              {setupError && (
+                <div className="bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[10.5px] p-3 rounded-xl flex items-start gap-2.5 font-bold">
+                  <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-rose-500" />
+                  <span>{setupError}</span>
+                </div>
+              )}
+
+              {setupSuccess && (
+                <div className="bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10.5px] p-3 rounded-xl flex items-center gap-2.5 font-bold">
+                  <CheckCircle size={14} className="flex-shrink-0 text-emerald-400" />
+                  <span>Password established! Unlocking dashboard...</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSetupPassword} className="space-y-4 text-xs font-bold text-stone-400">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-stone-450 uppercase tracking-wider font-extrabold">New Secure Password *</label>
+                  <div className="relative">
+                    <input 
+                      type={showSetupPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Min 8 chars, 1 uppercase, 1 number"
+                      value={setupPass}
+                      onChange={e => setSetupPass(e.target.value)}
+                      className="w-full bg-stone-950 border border-white/10 text-stone-200 pl-3.5 pr-10 py-2.5 rounded-xl outline-none focus:border-amber-500 font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSetupPassword(!showSetupPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-300 transition focus:outline-none cursor-pointer"
+                    >
+                      {showSetupPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-stone-450 uppercase tracking-wider font-extrabold">Confirm New Password *</label>
+                  <input 
+                    type="password"
+                    required
+                    placeholder="Verify secure password match"
+                    value={setupConfirmPass}
+                    onChange={e => setSetupConfirmPass(e.target.value)}
+                    className="w-full bg-stone-950 border border-white/10 text-stone-200 px-3.5 py-2.5 rounded-xl outline-none focus:border-amber-500 font-bold"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={setupLoading || setupSuccess}
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-600/10 cursor-pointer active:scale-95 transition"
+                >
+                  {setupLoading ? 'Saving...' : 'Establish Secure Credentials'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       </div>
 

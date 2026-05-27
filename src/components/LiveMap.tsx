@@ -457,20 +457,10 @@ const LiveMap: React.FC = () => {
         markersRef.current[emp.id].setPopupContent(popup);
       }
 
-      // Swiggy/Zomato style thin, solid movement trails
-      const pts = (historyPaths[emp.id] || []).map((p: any) => [p.latitude, p.longitude] as [number, number]);
-      if (pts.length > 1) {
-        if (!routesRef.current[emp.id]) {
-          routesRef.current[emp.id] = L.polyline(pts, {
-            color: emp.color,
-            weight: 2.2,
-            opacity: 0.85,
-            lineJoin: 'round',
-            lineCap: 'round'
-          }).addTo(map);
-        } else {
-          routesRef.current[emp.id].setLatLngs(pts);
-        }
+      // Route trails logic removed/disabled so employee travel lines do not show
+      if (routesRef.current[emp.id]) {
+        map.removeLayer(routesRef.current[emp.id]);
+        delete routesRef.current[emp.id];
       }
     });
 
@@ -487,29 +477,18 @@ const LiveMap: React.FC = () => {
     }
   }, [activeTracking, historyPaths, selectedEmployeeId, employees, ready, setSelectedEmployeeId, taskDropMode, drawMode, draftTaskLocation]);
 
-  /* ── 6. Geofence circles ─────────────────────────────────────────────── */
+  /* ── 6. Geofence circles (Disabled/Removed) ─────────────────────────────────── */
   useEffect(() => {
     const map = mapRef.current; const L = LRef.current;
     if (!map || !L || !ready) return;
 
+    // Clear all existing geofence layers
     Object.keys(gfLayersRef.current).forEach(id => {
-      if (!geofences.some(g => g.id === id)) { map.removeLayer(gfLayersRef.current[id]); delete gfLayersRef.current[id]; }
-    });
-
-    geofences.forEach(gf => {
-      const color = gf.type === 'client' ? '#10b981' : gf.type === 'restricted' ? '#ef4444' : '#3b82f6';
-      const opts  = { color, weight: 1.8, opacity: 0.9, fillColor: color, fillOpacity: 0.1, dashArray: gf.type === 'restricted' ? '5 5' : undefined };
-      if (!gfLayersRef.current[gf.id]) {
-        gfLayersRef.current[gf.id] = L.circle([gf.lat, gf.lng], { radius: gf.radius, ...opts })
-          .bindTooltip(gf.name, { permanent: false, direction: 'center' })
-          .addTo(map);
-      } else {
-        gfLayersRef.current[gf.id].setStyle(opts);
-        gfLayersRef.current[gf.id].setLatLng([gf.lat, gf.lng]);
-        gfLayersRef.current[gf.id].setRadius(gf.radius);
-      }
+      map.removeLayer(gfLayersRef.current[id]);
+      delete gfLayersRef.current[id];
     });
   }, [geofences, ready]);
+
 
   /* ── 7. Geofence draw mode ───────────────────────────────────────────── */
   useEffect(() => {

@@ -51,6 +51,17 @@ const nextConfig: NextConfig = {
         ]
       : [];
   },
+
+  // Proxy API requests to Express Backend on Port 5000
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:5000/api/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
+

@@ -204,16 +204,10 @@ const SuperAdminMap: React.FC<SuperAdminMapProps> = ({
       markersRef.current[emp.id] = marker;
       bounds.push([ping.latitude, ping.longitude]);
 
-      // Draw Swiggy/Zomato style thin, solid movement trails
-      const pts = (historyPaths[emp.id] || []).map((p: any) => [p.latitude, p.longitude] as [number, number]);
-      if (pts.length > 1) {
-        routesRef.current[emp.id] = L.polyline(pts, {
-          color: color,
-          weight: 2.2,
-          opacity: 0.85,
-          lineJoin: 'round',
-          lineCap: 'round'
-        }).addTo(map);
+      // Movement trails drawing disabled so traveled lines do not show
+      if (routesRef.current[emp.id]) {
+        map.removeLayer(routesRef.current[emp.id]);
+        delete routesRef.current[emp.id];
       }
     });
 

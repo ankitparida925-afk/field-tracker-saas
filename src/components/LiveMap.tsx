@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppState } from '../context/AppState';
-import { Layers, Navigation, ZoomIn, ShieldAlert, Users, Zap, Radio, Flame, ClipboardList } from 'lucide-react';
+import { Layers, Navigation, ZoomIn, ShieldAlert, Users, Zap, Radio, Flame, ClipboardList, MapPin, Building, Settings } from 'lucide-react';
 
 /* ─── SVG marker builders ─────────────────────────────────────────────────── */
 function empPinHtml(color: string, statusColor: string, initials: string, fresh: boolean) {
@@ -36,7 +36,7 @@ const LiveMap: React.FC = () => {
     employees: allEmployees, activeTracking, historyPaths, geofences: allGeofences, visits: allVisits,
     selectedEmployeeId, setSelectedEmployeeId, addGeofence,
     tasks: allTasks, setDraftTaskLocation, draftTaskLocation,
-    currentUser
+    currentUser, theme
   } = useAppState();
 
   // Tenant-scoped isolation for map markers
@@ -78,7 +78,7 @@ const LiveMap: React.FC = () => {
   const heatLayerRef  = useRef<any>(null);
 
   const [ready,    setReady]    = useState(false);
-  const [layer,    setLayer]    = useState<'dark'|'sat'>('dark');
+  const [layer,    setLayer]    = useState<'light'|'dark'|'sat'>('dark');
   const [locating, setLocating] = useState(false);
   const [drawMode, setDrawMode] = useState(false);
   const [taskDropMode, setTaskDropMode] = useState(false);
@@ -87,6 +87,164 @@ const LiveMap: React.FC = () => {
   const [gfRadius, setGfRadius] = useState(100);
   const [mapMode,  setMapMode]  = useState<'live'|'heatmap'>('live');
   const [, setTick]             = useState(0); // force 1s re-render for timers
+
+  // Map Search States & Handlers
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchedMarkerRef = useRef<any>(null);
+
+  // Commercial keys configuration (Google / Mapbox) for hyper-local search like Swiggy/Zomato
+  const [mapboxToken, setMapboxToken] = useState('');
+  const [googleKey, setGoogleKey] = useState('');
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setMapboxToken(localStorage.getItem('fti_mapbox_token') || '');
+      setGoogleKey(localStorage.getItem('fti_google_key') || '');
+    }
+  }, []);
+
+  const saveSettingsKeys = (mb: string, gg: string) => {
+    setMapboxToken(mb);
+    setGoogleKey(gg);
+    localStorage.setItem('fti_mapbox_token', mb);
+    localStorage.setItem('fti_google_key', gg);
+    setShowSettingsModal(false);
+  };
+
+  // Debounced search suggestions fetch
+  useEffect(() => {
+    if (!mapSearchQuery.trim() || mapSearchQuery.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(mapSearchQuery.trim())}`, {
+          headers: {
+            'x-mapbox-token': mapboxToken,
+            'x-google-key': googleKey
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSuggestions(data || []);
+          setShowSuggestions(true);
+          setActiveSuggestionIndex(-1);
+        }
+      } catch (err) {
+        console.warn('Suggestions fetch failed', err);
+      }
+    }, 250);
+
+    return () => clearTimeout(handler);
+  }, [mapSearchQuery, mapboxToken, googleKey]);
+
+  const selectSuggestion = (item: any) => {
+    if (!mapRef.current) return;
+    const latitude = parseFloat(item.lat);
+    const longitude = parseFloat(item.lon);
+
+    setMapSearchQuery(item.display_name);
+    setShowSuggestions(false);
+    setSuggestions([]);
+
+    mapRef.current.setView([latitude, longitude], 16, { animate: true });
+
+    // Place elegant Bouncing Search Pin!
+    const L = LRef.current;
+    if (L) {
+      if (searchedMarkerRef.current) {
+        mapRef.current.removeLayer(searchedMarkerRef.current);
+      }
+
+      // Swiggy/Zomato style premium red/amber pin
+      const iconHtml = `<div class="animate-bounce" style="position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:44px;">
+        <div style="position:absolute;top:10px;left:10px;right:10px;bottom:10px;border-radius:50%;background:#ef4444;opacity:0.3;animation:lm-pulse 1.2s ease-out infinite"></div>
+        <div style="background:#dc2626;color:white;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(220,38,38,0.5);border:3px solid #fff;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+        </div>
+      </div>`;
+      
+      const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [44, 44], iconAnchor: [22, 44] });
+
+      const popupContent = document.createElement('div');
+      popupContent.style.minWidth = '190px';
+      popupContent.style.padding = '6px 2px';
+      popupContent.innerHTML = `
+        <div style="font-weight:800;font-size:12.5px;color:#ef4444;margin-bottom:4px;line-height:1.3">📍 Pinned Location</div>
+        <div style="color:${theme === 'light' ? '#334155' : '#cbd5e1'};font-size:10.5px;line-height:1.4;margin-bottom:10px;">${item.display_name}</div>
+        <div style="display:flex;gap:6px;">
+          <button id="search-pin-create-task" style="flex:1;background:#d97706;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:10px;font-weight:750;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.2s;">
+            📋 Create Task Here
+          </button>
+        </div>
+      `;
+
+      const marker = L.marker([latitude, longitude], { icon })
+        .bindPopup(popupContent, { maxWidth: 240 })
+        .addTo(mapRef.current);
+
+      marker.on('popupopen', () => {
+        const createTaskBtn = document.getElementById('search-pin-create-task');
+        if (createTaskBtn) {
+          createTaskBtn.addEventListener('click', () => {
+            setDraftTaskLocation({ lat: latitude, lng: longitude });
+            marker.closePopup();
+            alert('Location snapped! Please fill out the Task Assignment form in the sidebar.');
+          });
+        }
+      });
+
+      searchedMarkerRef.current = marker;
+      marker.openPopup();
+    }
+
+    // Auto snap if in Task Drop Mode
+    if (taskDropModeRef.current) {
+      setDraftTaskLocation({ lat: latitude, lng: longitude });
+    }
+  };
+
+  const handleSearchLocation = async () => {
+    if (!mapSearchQuery.trim() || !mapRef.current) return;
+    setSearchLoading(true);
+    setSearchError(false);
+    try {
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(mapSearchQuery.trim())}`, {
+        headers: {
+          'x-mapbox-token': mapboxToken,
+          'x-google-key': googleKey
+        }
+      });
+      if (!res.ok) {
+        setSearchError(true);
+        return;
+      }
+      const data = await res.json();
+      if (data && data.length > 0) {
+        selectSuggestion(data[0]);
+        setSearchError(false);
+      } else {
+        setSearchError(true);
+      }
+    } catch (err) {
+      console.error('Location search failed:', err);
+      setSearchError(true);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   useEffect(() => { gfTypeRef.current   = gfType;   }, [gfType]);
   useEffect(() => { gfRadiusRef.current = gfRadius; }, [gfRadius]);
@@ -161,8 +319,14 @@ const LiveMap: React.FC = () => {
         { maxZoom: 19, keepBuffer: 4, updateWhenIdle: false }
       );
 
+      const light = L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        { subdomains: 'abcd', maxZoom: 20, keepBuffer: 4, updateWhenIdle: false }
+      );
+
       (map as any)._darkLayer = dark;
       (map as any)._satLayer  = sat;
+      (map as any)._lightLayer = light;
 
       mapRef.current = map;
       setTimeout(() => map.invalidateSize(), 200);
@@ -174,6 +338,9 @@ const LiveMap: React.FC = () => {
 
     return () => {
       if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
+      if (searchedMarkerRef.current && mapRef.current) {
+        mapRef.current.removeLayer(searchedMarkerRef.current);
+      }
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
   }, []);
@@ -184,14 +351,29 @@ const LiveMap: React.FC = () => {
     if (!map || !L || !ready) return;
     const dark = (map as any)._darkLayer;
     const sat  = (map as any)._satLayer;
+    const light = (map as any)._lightLayer;
+
+    if (map.hasLayer(dark)) map.removeLayer(dark);
+    if (map.hasLayer(sat))  map.removeLayer(sat);
+    if (light && map.hasLayer(light)) map.removeLayer(light);
+
     if (layer === 'dark') {
-      if (map.hasLayer(sat))  map.removeLayer(sat);
-      if (!map.hasLayer(dark)) dark.addTo(map);
-    } else {
-      if (map.hasLayer(dark)) map.removeLayer(dark);
-      if (!map.hasLayer(sat)) sat.addTo(map);
+      dark.addTo(map);
+    } else if (layer === 'sat') {
+      sat.addTo(map);
+    } else if (layer === 'light' && light) {
+      light.addTo(map);
     }
   }, [layer, ready]);
+
+  // Sync map layer when global theme changes
+  useEffect(() => {
+    if (theme === 'light') {
+      setLayer('light');
+    } else {
+      setLayer('dark');
+    }
+  }, [theme]);
 
   /* ── 3. Fit all active agents ────────────────────────────────────────── */
   const fitAll = () => {
@@ -494,17 +676,17 @@ const LiveMap: React.FC = () => {
       )}
 
       {/* Layer switcher */}
-      <div style={{ position:'absolute', top:14, left:14, zIndex:30, display:'flex', gap:3, background:'rgba(9,13,22,0.92)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:12, padding:4 }}>
-        {(['dark','sat'] as const).map(l => (
+      <div className="glass-panel" style={{ position:'absolute', top:14, left:14, zIndex:30, display:'flex', gap:3, borderRadius:12, padding:4 }}>
+        {(['light','dark','sat'] as const).map(l => (
           <button key={l} onClick={() => setLayer(l)}
             style={{ padding:'4px 14px', fontSize:11, fontWeight:700, borderRadius:8, border:'none', cursor:'pointer', transition:'all 0.2s', background: layer===l ? '#d97706' : 'transparent', color: layer===l ? '#fff' : '#64748b' }}>
-            {l === 'dark' ? 'Dark Map' : 'Satellite'}
+            {l === 'light' ? 'Light Map' : l === 'dark' ? 'Dark Map' : 'Satellite'}
           </button>
         ))}
       </div>
 
       {/* Map Mode switcher */}
-      <div style={{ position:'absolute', top:14, left:180, zIndex:30, display:'flex', gap:3, background:'rgba(9,13,22,0.92)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:12, padding:4 }}>
+      <div className="glass-panel" style={{ position:'absolute', top:14, left:250, zIndex:30, display:'flex', gap:3, borderRadius:12, padding:4 }}>
         {(['live','heatmap'] as const).map(m => (
           <button key={m} onClick={() => setMapMode(m)}
             style={{ padding:'4px 14px', fontSize:11, fontWeight:700, borderRadius:8, border:'none', cursor:'pointer', transition:'all 0.2s', background: mapMode===m ? '#ea580c' : 'transparent', color: mapMode===m ? '#fff' : '#64748b', display:'flex', alignItems:'center', gap:4 }}>
@@ -514,8 +696,129 @@ const LiveMap: React.FC = () => {
         ))}
       </div>
 
-      {/* HUD — top right */}
-      <div style={{ position:'absolute', top:14, right:14, zIndex:30, pointerEvents:'none' }}>
+      {/* Location Search Bar */}
+      <div className="glass-panel" style={{ position:'absolute', top:14, left:440, zIndex:100, display:'flex', flexDirection:'column', borderRadius:14, padding:4, minWidth:200 }}>
+        <div style={{ display:'flex', gap:6, alignItems:'center', width:'100%' }}>
+          <input 
+            type="text"
+            placeholder="Search location..."
+            value={mapSearchQuery}
+            onChange={e => setMapSearchQuery(e.target.value)}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                if (activeSuggestionIndex >= 0 && activeSuggestionIndex < suggestions.length) {
+                  selectSuggestion(suggestions[activeSuggestionIndex]);
+                } else {
+                  handleSearchLocation();
+                }
+              } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setActiveSuggestionIndex(prev => (prev + 1) % suggestions.length);
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setActiveSuggestionIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
+              } else if (e.key === 'Escape') {
+                setShowSuggestions(false);
+              }
+            }}
+            style={{ background:'transparent', border:'none', color: theme === 'light' ? '#0f172a' : '#f1f5f9', fontSize:11, fontWeight:600, outline:'none', padding:'6px 8px', width:140 }}
+          />
+          <button
+            onClick={handleSearchLocation}
+            disabled={searchLoading}
+            style={{ background:'#d97706', color:'#fff', border:'none', borderRadius:8, padding:'5px 12px', fontSize:10, fontWeight:750, cursor:'pointer', transition:'all 0.2s' }}
+          >
+            {searchLoading ? '...' : 'Search'}
+          </button>
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            title="Search Engine Settings"
+            style={{ background: 'transparent', color: '#64748b', border: 'none', borderRadius: 8, padding: '4px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center' }}
+          >
+            <Settings size={14} style={{ transition: 'all 0.3s' }} />
+          </button>
+          {searchError && (
+            <span style={{ fontSize:9, color:'#ef4444', fontWeight:800, paddingRight:6 }}>Not Found</span>
+          )}
+        </div>
+
+        {/* Swiggy/Zomato style Suggestions Dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="glass-panel" style={{
+            position: 'absolute',
+            top: '105%',
+            left: 0,
+            width: '100%',
+            minWidth: '290px',
+            maxHeight: '260px',
+            overflowY: 'auto',
+            background: theme === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(9, 13, 22, 0.98)',
+            border: theme === 'light' ? '1px solid rgba(15, 23, 42, 0.12)' : '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
+            padding: '4px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            zIndex: 100
+          }}>
+            {suggestions.map((item, idx) => {
+              const isActive = idx === activeSuggestionIndex;
+              const isLandmark = item.type === 'landmark';
+              const isCity = item.type === 'city';
+              return (
+                <div
+                  key={idx}
+                  onClick={() => selectSuggestion(item)}
+                  onMouseEnter={() => setActiveSuggestionIndex(idx)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: isActive ? (theme === 'light' ? '#f1f5f9' : '#1e293b') : 'transparent',
+                  }}
+                >
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 5,
+                    borderRadius: 6,
+                    background: isLandmark ? 'rgba(217, 119, 6, 0.15)' : isCity ? 'rgba(59, 130, 246, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                    color: isLandmark ? '#d97706' : isCity ? '#3b82f6' : '#94a3b8'
+                  }}>
+                    {isLandmark ? <Building size={12}/> : <MapPin size={12}/>}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+                    <span style={{
+                      fontSize: '10.5px',
+                      fontWeight: 700,
+                      color: theme === 'light' ? '#0f172a' : '#f1f5f9',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                      width: '200px'
+                    }}>
+                      {item.display_name}
+                    </span>
+                    <span style={{ fontSize: '8.5px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, marginTop: 1 }}>
+                      {isLandmark ? 'Enterprise Client' : isCity ? 'City Bounds' : 'Geocoded Address'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* HUD — bottom right */}
+      <div style={{ position:'absolute', bottom:14, right:14, zIndex:30, pointerEvents:'none' }}>
         <div style={{ background:'rgba(9,13,22,0.92)', backdropFilter:'blur(10px)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:14, padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
           <div style={{ background: activeCount>0 ? 'rgba(16,185,129,0.15)' : 'rgba(99,102,241,0.15)', border:`1px solid ${activeCount>0?'rgba(16,185,129,0.35)':'rgba(99,102,241,0.35)'}`, padding:7, borderRadius:9, color:activeCount>0?'#34d399':'#818cf8', display:'flex' }}>
             {activeCount > 0 ? <Radio size={15} style={{ animation:'lm-spin 3s linear infinite' }}/> : <Zap size={15}/>}
@@ -615,6 +918,128 @@ const LiveMap: React.FC = () => {
             <p style={{ color:'#64748b', fontSize:11, marginTop:4, lineHeight:1.5 }}>
               Ask employees to open the app<br/>and tap <b style={{color:'#10b981'}}>"Go On Duty"</b>
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Search Engine Config Gear Modal Overlay */}
+      {showSettingsModal && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(9, 13, 22, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%',
+            maxWidth: '380px',
+            padding: '20px',
+            background: theme === 'light' ? '#ffffff' : 'rgba(15, 23, 42, 0.96)',
+            border: theme === 'light' ? '1px solid rgba(15, 23, 42, 0.12)' : '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '16px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14
+          }}>
+            <div>
+              <h3 style={{ fontSize: '13.5px', fontWeight: 800, color: theme === 'light' ? '#0f172a' : '#f1f5f9', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Settings size={14} style={{ color: '#d97706' }} /> Map Search Engine Settings
+              </h3>
+              <p style={{ fontSize: '10.5px', color: '#64748b', marginTop: 4, lineHeight: 1.4 }}>
+                Configure professional commercial geocoders for hyper-local addresses and landmarks, just like Swiggy and Zomato.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: '9px', fontWeight: 800, color: theme === 'light' ? '#475569' : '#94a3b8', textTransform: 'uppercase' }}>
+                  Mapbox Access Token
+                </label>
+                <input
+                  type="text"
+                  placeholder="pk.eyJ1Ijoi..."
+                  defaultValue={mapboxToken}
+                  id="settings-mapbox-token"
+                  style={{
+                    background: theme === 'light' ? '#f8fafc' : 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    color: theme === 'light' ? '#0f172a' : '#f1f5f9',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={{ fontSize: '9px', fontWeight: 800, color: theme === 'light' ? '#475569' : '#94a3b8', textTransform: 'uppercase' }}>
+                  Google Maps API Key
+                </label>
+                <input
+                  type="text"
+                  placeholder="AIzaSy..."
+                  defaultValue={googleKey}
+                  id="settings-google-key"
+                  style={{
+                    background: theme === 'light' ? '#f8fafc' : 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    color: theme === 'light' ? '#0f172a' : '#f1f5f9',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+
+            <p style={{ fontSize: '9px', color: '#ea580c', margin: 0, fontWeight: 700 }}>
+              * Leave blank to gracefully fall back to the community-driven geocoding engine (Photon).
+            </p>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                style={{
+                  background: 'transparent',
+                  color: '#64748b',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const mb = (document.getElementById('settings-mapbox-token') as HTMLInputElement)?.value || '';
+                  const gg = (document.getElementById('settings-google-key') as HTMLInputElement)?.value || '';
+                  saveSettingsKeys(mb, gg);
+                }}
+                style={{
+                  background: '#d97706',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '6px 14px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(217, 119, 6, 0.3)'
+                }}
+              >
+                Save Settings
+              </button>
+            </div>
           </div>
         </div>
       )}

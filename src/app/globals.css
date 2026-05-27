@@ -218,3 +218,187 @@ body {
 .ol-overviewmap:not(.ol-collapsed) { background: rgba(255,255,255,.8); }
 .ol-overviewmap-box { border: 2px dotted rgba(0,60,136,.7); }
 .ol-overviewmap .ol-overviewmap-box:hover { cursor: move; }
+
+/* ── Premium Light Mode Variable Overrides & Core Selectors ───────────────── */
+[data-theme="light"] {
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --border-color: rgba(15, 23, 42, 0.08);
+  --primary-glow: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0) 70%);
+}
+
+[data-theme="light"] body {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .glass-panel {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 2px 8px -1px rgba(0, 0, 0, 0.02) !important;
+}
+
+[data-theme="light"] .glass-panel:hover {
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+[data-theme="light"] .glass-input {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+}
+
+/* Override hardcoded B2B dark background utilities to elegant light panels */
+[data-theme="light"] .bg-\[\#0f0a06\],
+[data-theme="light"] .bg-\[\#070a13\],
+[data-theme="light"] .bg-stone-950,
+[data-theme="light"] .bg-stone-950\/90,
+[data-theme="light"] .bg-stone-950\/80,
+[data-theme="light"] .bg-stone-950\/60,
+[data-theme="light"] .bg-stone-950\/50,
+[data-theme="light"] .bg-stone-950\/40,
+[data-theme="light"] .bg-stone-900,
+[data-theme="light"] .bg-stone-900\/40,
+[data-theme="light"] .bg-stone-900\/30,
+[data-theme="light"] .bg-stone-900\/70,
+[data-theme="light"] .bg-stone-850,
+[data-theme="light"] .bg-stone-900\/30 {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  color: #0f172a !important;
+}
+
+/* Light mode specific inner input overlays */
+[data-theme="light"] input[type="email"],
+[data-theme="light"] input[type="password"],
+[data-theme="light"] input[type="text"],
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] input[type="email"]::placeholder,
+[data-theme="light"] input[type="password"]::placeholder,
+[data-theme="light"] input[type="text"]::placeholder,
+[data-theme="light"] select::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+[data-theme="light"] header,
+[data-theme="light"] header .bg-stone-900 {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+[data-theme="light"] footer {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
+  color: #64748b !important;
+}
+
+/* Adjust light borders */
+[data-theme="light"] .border-white\/5,
+[data-theme="light"] .border-white\/8,
+[data-theme="light"] .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Re-theme hardcoded dark text utilities */
+[data-theme="light"] .text-white,
+[data-theme="light"] .text-stone-100,
+[data-theme="light"] .text-stone-200 {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .text-stone-300,
+[data-theme="light"] .text-stone-400 {
+  color: #334155 !important;
+}
+
+[data-theme="light"] .text-stone-500 {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .text-stone-450 {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .text-stone-600 {
+  color: #475569 !important;
+}
+
+/* Selected card and code-tag backgrounds in Light Mode */
+[data-theme="light"] .bg-amber-950\/20 {
+  background-color: rgba(245, 158, 11, 0.08) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+[data-theme="light"] .bg-stone-950 {
+  background-color: #e2e8f0 !important; /* light slate background for tags to pop */
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* High-contrast amber/yellow text overrides in Light Mode */
+[data-theme="light"] .text-amber-400,
+[data-theme="light"] .text-amber-400\/90,
+[data-theme="light"] .text-amber-400\/95 {
+  color: #b45309 !important; /* amber-700 for high-contrast rich gold */
+}
+
+/* Adjust custom dark layout cards, notches, and bezels to blend smoothly */
+[data-theme="light"] .phone-bezel {
+  border-color: #e2e8f0 !important;
+  background-color: #f8fafc !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .phone-screen {
+  background: #f1f5f9 !important;
+}
+
+[data-theme="light"] .phone-notch {
+  background: #e2e8f0 !important;
+}
+
+[data-theme="light"] .ol-popup-content-wrapper,
+[data-theme="light"] .leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .ol-popup-tip,
+[data-theme="light"] .leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* Custom dedicated button styles for Remove Operative */
+.btn-remove-operative {
+  background-color: #292524 !important; /* stone-800 */
+  color: #a8a29e !important; /* stone-400 */
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.btn-remove-operative:hover {
+  background-color: rgba(244, 63, 94, 0.15) !important; /* rose-500/15 */
+  color: #fb7185 !important; /* rose-400 */
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+[data-theme="light"] .btn-remove-operative {
+  background-color: #fef2f2 !important; /* premium soft rose light bg */
+  color: #ef4444 !important; /* elegant solid red text */
+  border: 1px solid rgba(239, 68, 68, 0.15) !important;
+}
+
+[data-theme="light"] .btn-remove-operative:hover {
+  background-color: #fee2e2 !important; /* hover rose bg */
+  color: #dc2626 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+

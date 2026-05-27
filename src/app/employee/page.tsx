@@ -7,7 +7,7 @@ import {
   MapPin, LogOut, Navigation, Battery, Zap, Wifi, WifiOff,
   Clock, CheckCircle, AlertTriangle, Play, Square, Activity,
   User, Building, Radio, ClipboardList, Navigation2, Lock,
-  Eye, EyeOff
+  Eye, EyeOff, Sun, Moon
 } from 'lucide-react';
 
 const GPS_INTERVAL_MS = 5000; // Ping every 5 seconds
@@ -25,7 +25,8 @@ export default function EmployeePage() {
     currentUser, logout,
     employees, activeTracking,
     startShift, endShift, injectGPSPing, setGPSSource,
-    alerts, tasks, completeTask, setupEmployeePassword
+    alerts, tasks, completeTask, setupEmployeePassword,
+    theme, toggleTheme
   } = useAppState();
 
   const router = useRouter();
@@ -242,12 +243,21 @@ export default function EmployeePage() {
               )}
             </div>
           </div>
-          <button
-            onClick={() => { handleEndShift(); logout(); router.replace('/'); }}
-            className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 px-3 py-1.5 rounded-xl text-[10.5px] font-bold transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <LogOut size={11}/> Log Out
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={toggleTheme}
+              className="bg-stone-50 hover:bg-stone-100 border border-stone-200 text-stone-500 hover:text-stone-800 p-2 rounded-xl text-xs font-bold transition flex items-center justify-center active:scale-95 cursor-pointer"
+              title="Switch Color Theme"
+            >
+              {theme === 'light' ? <Moon size={11} /> : <Sun size={11} />}
+            </button>
+            <button
+              onClick={() => { handleEndShift(); logout(); router.replace('/'); }}
+              className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 px-3 py-1.5 rounded-xl text-[10.5px] font-bold transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <LogOut size={11}/> Log Out
+            </button>
+          </div>
         </div>
 
         {/* ── GPS Tracking Card ─────────────────────────────────────────── */}

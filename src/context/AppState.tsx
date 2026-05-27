@@ -127,6 +127,8 @@ interface AppStateContextType {
   deleteEmployee: (id: string) => Promise<{ success: boolean; error?: string }>;
   isDemoMode: boolean;
   setIsDemoMode: (val: boolean) => void;
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
   // Simulator triggers
   startShift: (employeeId: string, initialLat?: number, initialLng?: number) => void;
   endShift: (employeeId: string) => void;
@@ -186,6 +188,26 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }
   // ──────────────────────────────────────────────────────────────────────────
+
+  // ── Theme Management ──────────────────────────────────────────────────────
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('field_tracker_theme');
+      return (saved === 'light' || saved === 'dark') ? saved : 'dark';
+    }
+    return 'dark';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('field_tracker_theme', theme);
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
 
   const [employees, setEmployees] = useState<EmployeeRoute[]>(() => {
     if (typeof window !== 'undefined') {
@@ -1668,6 +1690,8 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteEmployee,
         isDemoMode,
         setIsDemoMode,
+        theme,
+        toggleTheme,
         startShift,
         endShift,
         toggleOfflineMode,

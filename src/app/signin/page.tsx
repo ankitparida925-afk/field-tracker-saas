@@ -17,11 +17,13 @@ import {
   Building2,
   UserPlus,
   Eye,
-  EyeOff
+  EyeOff,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export default function SignInPage() {
-  const { login, currentUser } = useAppState();
+  const { login, currentUser, theme, toggleTheme } = useAppState();
   const router = useRouter();
   const [mounted, setMounted] = React.useState(false);
 
@@ -112,6 +114,15 @@ export default function SignInPage() {
 
   return (
     <div className="min-h-screen w-full bg-[#0f0a06] flex items-center justify-center p-4 relative overflow-hidden py-10">
+
+      {/* Floating Theme Toggle */}
+      <button
+        onClick={toggleTheme}
+        className="absolute top-6 right-6 z-[1000] p-3 rounded-2xl bg-stone-900/60 hover:bg-stone-800 border border-white/10 hover:border-white/20 text-stone-400 hover:text-white transition active:scale-95 cursor-pointer shadow-lg"
+        title="Toggle Theme Mode"
+      >
+        {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+      </button>
 
       {/* Background glows */}
       <div className={`absolute top-1/4 left-1/4 w-[400px] h-[400px] rounded-full ${brandColor === 'indigo' ? 'bg-indigo-600/8' : brandColor === 'rose' ? 'bg-rose-600/8' : 'bg-amber-600/8'} blur-[120px] pointer-events-none`} />

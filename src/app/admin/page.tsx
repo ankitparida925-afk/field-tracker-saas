@@ -24,7 +24,9 @@ import {
   Phone,
   Mail,
   Compass,
-  Shield
+  Shield,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // Load OpenLayers map dynamically (no SSR — OL uses browser APIs)
@@ -45,7 +47,9 @@ export default function AdminPage() {
     setIsDemoMode,
     employees,
     selectedEmployeeId,
-    setSelectedEmployeeId
+    setSelectedEmployeeId,
+    theme,
+    toggleTheme
   } = useAppState();
 
   const router = useRouter();
@@ -194,6 +198,15 @@ export default function AdminPage() {
                 <span className="text-stone-600 text-[9px]">SESSION</span>
               </div>
             )}
+
+            {/* Theme Mode Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="bg-stone-900 hover:bg-stone-800 border border-white/10 hover:border-amber-500/30 text-stone-400 hover:text-white p-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+              title="Switch Color Theme"
+            >
+              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+            </button>
 
             {/* Logout button */}
             <button

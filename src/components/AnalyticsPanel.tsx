@@ -415,7 +415,7 @@ export const AnalyticsPanel: React.FC = () => {
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); setEmpToDelete(emp); }}
-                        className="bg-stone-800 hover:bg-rose-950/40 hover:text-rose-400 text-stone-400 text-[10px] font-bold px-2.5 py-1 rounded border border-white/5 transition flex items-center justify-center gap-1 mt-1 cursor-pointer"
+                        className="btn-remove-operative text-[10px] font-bold px-2.5 py-1 rounded transition flex items-center justify-center gap-1 mt-1.5 cursor-pointer"
                       >
                         <Trash2 size={10} /> Remove
                       </button>

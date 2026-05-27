@@ -6,6 +6,8 @@ import SuperAdmin from '../models/SuperAdmin';
 import Organization from '../models/Organization';
 import Employee from '../models/Employee';
 import Announcement from '../models/Announcement';
+import Task from '../models/Task';
+import TaskActivityLog from '../models/TaskActivityLog';
 
 dotenv.config();
 
@@ -18,6 +20,8 @@ async function seed() {
     await Organization.deleteMany({});
     await Employee.deleteMany({});
     await Announcement.deleteMany({});
+    await Task.deleteMany({});
+    await TaskActivityLog.deleteMany({});
 
     console.log('🌱 Seeding SuperAdmin...');
     await SuperAdmin.create({
@@ -96,6 +100,126 @@ async function seed() {
         needsPasswordSetup: false,
         createdAt: new Date()
       });
+    }
+
+    console.log('🌱 Seeding Enterprise Tasks...');
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const inTwoHours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const inFiveDays = new Date(now.getTime() + 5 * 1000 * 60 * 60 * 24);
+
+    const demoTasks = [
+      {
+        title: 'Pharma Clinic Delivery audit',
+        description: 'Audit promo stands and confirm vaccine cooler temperatures at Central Med Clinic.',
+        assignedEmployeeId: 'emp-2',
+        assignedEmployeeName: 'Sarah Jenkins',
+        priority: 'High' as const,
+        status: 'Started' as const,
+        startDate: oneDayAgo,
+        deadline: inTwoHours,
+        notes: 'Take picture proof of promo stand placement and cooler thermometer.',
+        orgId: 'org-fti',
+        location: { lat: 37.7749, lng: -122.4194 }
+      },
+      {
+        title: 'Enterprise Client Onboarding Presentation',
+        description: 'Conduct final platform onboarding walkthrough for Apex executives.',
+        assignedEmployeeId: 'emp-1',
+        assignedEmployeeName: 'Rahul Sharma',
+        priority: 'High' as const,
+        status: 'Completed' as const,
+        startDate: new Date(now.getTime() - 3 * 60 * 60 * 1000),
+        deadline: new Date(now.getTime() - 1 * 60 * 60 * 1000),
+        notes: 'Onboarding deck is linked in attachments. Ensure all stakeholders get client credentials.',
+        orgId: 'org-fti',
+        completedAt: now,
+        totalDurationMs: 2 * 60 * 60 * 1000,
+        location: { lat: 37.7833, lng: -122.4167 }
+      },
+      {
+        title: 'Last-Mile Logistics dispatch audit',
+        description: 'Audit vehicle layout and routes optimization check for Amit Patel.',
+        assignedEmployeeId: 'emp-3',
+        assignedEmployeeName: 'Amit Patel',
+        priority: 'Medium' as const,
+        status: 'Pending' as const,
+        startDate: now,
+        deadline: inFiveDays,
+        notes: 'Check for driver route compliance.',
+        orgId: 'org-fti',
+        location: { lat: 37.7699, lng: -122.4468 }
+      },
+      {
+        title: 'HVAC Air Filter Replacement Service',
+        description: 'Perform routine replacement of lobby HVAC unit filter at Apex HQ.',
+        assignedEmployeeId: 'emp-4',
+        assignedEmployeeName: 'Carlos Ruiz',
+        priority: 'Low' as const,
+        status: 'Pending' as const,
+        startDate: now,
+        deadline: new Date(now.getTime() - 4 * 60 * 60 * 1000), // Overdue!
+        notes: 'Overdue service audit.',
+        orgId: 'org-fti',
+        location: { lat: 37.7599, lng: -122.4368 }
+      }
+    ];
+
+    for (const dt of demoTasks) {
+      const isPastDeadline = new Date().getTime() > new Date(dt.deadline).getTime();
+      const isOverdue = dt.status !== 'Completed' && isPastDeadline;
+
+      const t = await Task.create({
+        organizationId: dt.orgId,
+        title: dt.title,
+        description: dt.description,
+        assignedEmployeeId: dt.assignedEmployeeId,
+        assignedEmployeeName: dt.assignedEmployeeName,
+        priority: dt.priority,
+        status: dt.status,
+        startDate: dt.startDate,
+        deadline: dt.deadline,
+        notes: dt.notes,
+        location: dt.location,
+        completedAt: dt.completedAt,
+        totalDurationMs: dt.totalDurationMs || 0,
+        isOverdue,
+        delayTimeMs: isOverdue ? (new Date().getTime() - new Date(dt.deadline).getTime()) : 0,
+        attachments: dt.status === 'Completed' ? [{ fileName: 'onboarding-deck.pdf', fileUrl: 'https://example.com/onboarding-deck.pdf', uploadedAt: oneDayAgo }] : [],
+        comments: dt.status === 'Started' ? [{ id: '1', authorName: 'rahul@fti.com', authorId: 'emp-1', text: 'Sarah, please prioritize this by 4 PM.', createdAt: oneDayAgo }] : []
+      });
+
+      // Seed Activity Logs
+      await TaskActivityLog.create({
+        taskId: t._id,
+        organizationId: dt.orgId,
+        employeeId: 'admin-seed',
+        employeeName: 'HQ System',
+        action: 'Created',
+        details: `Task created and assigned to ${dt.assignedEmployeeName}.`
+      });
+
+      if (dt.status === 'Started' || dt.status === 'Completed') {
+        await TaskActivityLog.create({
+          taskId: t._id,
+          organizationId: dt.orgId,
+          employeeId: dt.assignedEmployeeId,
+          employeeName: dt.assignedEmployeeName,
+          action: 'Started',
+          details: `${dt.assignedEmployeeName} marked the task as Started.`
+        });
+      }
+
+      if (dt.status === 'Completed') {
+        await TaskActivityLog.create({
+          taskId: t._id,
+          organizationId: dt.orgId,
+          employeeId: dt.assignedEmployeeId,
+          employeeName: dt.assignedEmployeeName,
+          action: 'Completed',
+          details: `${dt.assignedEmployeeName} completed the task successfully.`
+        });
+      }
     }
 
     console.log('🌱 Seeding Announcements...');

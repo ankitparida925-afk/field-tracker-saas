@@ -252,11 +252,13 @@ export const AnalyticsPanel: React.FC = () => {
     if (!taskTitle.trim() || !taskDesc.trim()) return;
 
     assignTask({
-      employeeId: taskEmpId,
+      assignedEmployeeId: taskEmpId,
       title: taskTitle,
       description: taskDesc,
-      priority: taskPriority,
+      priority: taskPriority as 'High' | 'Medium' | 'Low',
+      startDate: new Date(),
       deadline: new Date(Date.now() + 1000 * 60 * 60 * 5), // 5 hrs deadline
+      notes: '',
       location: draftTaskLocation || undefined
     });
 

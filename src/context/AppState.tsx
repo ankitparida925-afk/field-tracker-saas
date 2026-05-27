@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { io as socketIO } from 'socket.io-client';
 import { mockEmployees, EmployeeRoute, RoutePoint, spoofingDestinations } from '../utils/mockRoutes';
 import {
   storeAccessToken,
@@ -80,6 +81,20 @@ export interface AlertLog {
   resolved: boolean;
 }
 
+export interface TaskAttachment {
+  fileName: string;
+  fileUrl: string;
+  uploadedAt: Date;
+}
+
+export interface TaskComment {
+  id: string;
+  authorName: string;
+  authorId: string;
+  text: string;
+  createdAt: Date;
+}
+
 export interface Task {
   id: string;
   employeeId: string;
@@ -87,10 +102,20 @@ export interface Task {
   title: string;
   description: string;
   priority: 'High' | 'Medium' | 'Low';
+  startDate: Date;
   deadline: Date;
-  status: 'Pending' | 'Completed';
+  status: 'Pending' | 'Started' | 'Paused' | 'Completed';
+  notes: string;
+  assignedAt: Date;
+  startedAt?: Date;
+  pausedAt?: Date;
   completedAt?: Date;
+  totalDurationMs: number;
+  delayTimeMs: number;
+  isOverdue: boolean;
   location?: { lat: number; lng: number };
+  attachments: TaskAttachment[];
+  comments: TaskComment[];
 }
 
 interface Geofence {
@@ -139,10 +164,19 @@ interface AppStateContextType {
   uploadVoiceNote: (employeeId: string, clientName: string, text: string) => void;
   injectGPSPing: (employeeId: string, lat: number, lng: number, speed?: number) => void;
   // Admin triggers
-  assignTask: (task: Omit<Task, 'id' | 'status' | 'employeeName'>) => void;
+  assignTask: (task: { title: string; description: string; assignedEmployeeId: string; priority: 'High' | 'Medium' | 'Low'; startDate: Date; deadline: Date; notes: string; location?: { lat: number; lng: number } }) => Promise<void>;
+  updateTaskStatus: (taskId: string, status: 'Pending' | 'Started' | 'Paused' | 'Completed', notes?: string) => Promise<void>;
+  addTaskComment: (taskId: string, text: string) => Promise<void>;
+  addTaskAttachment: (taskId: string, fileName: string, fileUrl: string) => Promise<void>;
+  fetchTaskLogs: (taskId: string) => Promise<any[]>;
+  taskAnalytics: {
+    summary: { total: number; pending: number; started: number; paused: number; completed: number; overdue: number };
+    employeePerformance: any[];
+    recentActivity: any[];
+  } | null;
   draftTaskLocation: { lat: number; lng: number } | null;
   setDraftTaskLocation: (loc: { lat: number; lng: number } | null) => void;
-  completeTask: (taskId: string) => void;
+  completeTask: (taskId: string) => Promise<void>;
   addGeofence: (geofence: Omit<Geofence, 'id'>) => void;
   deleteGeofence: (id: string) => void;
   resolveAlert: (id: string) => void;
@@ -303,6 +337,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [visits, setVisits] = useState<VisitRecord[]>([]);
   const [alerts, setAlerts] = useState<AlertLog[]>([]);
   const [draftTaskLocation, setDraftTaskLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [taskAnalytics, setTaskAnalytics] = useState<any | null>(null);
   const [tasks, setTasks] = useState<Task[]>([
     {
       id: 'task-1',
@@ -311,8 +346,16 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       title: 'Present RFP to Apex Corp',
       description: 'Meet with CTO of Apex Corp and present the field operations tracking solution RFP.',
       priority: 'High',
+      startDate: new Date(),
       deadline: new Date(Date.now() + 1000 * 60 * 60 * 4), // 4 hours from now
-      status: 'Pending'
+      status: 'Pending',
+      notes: 'Ensure presentation deck is fully updated.',
+      assignedAt: new Date(),
+      totalDurationMs: 0,
+      delayTimeMs: 0,
+      isOverdue: false,
+      attachments: [],
+      comments: []
     },
     {
       id: 'task-2',
@@ -321,8 +364,16 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       title: 'Store Inspection Apex Retail',
       description: 'Take photographs of promotional posters placed at the storefront.',
       priority: 'Medium',
+      startDate: new Date(),
       deadline: new Date(Date.now() + 1000 * 60 * 60 * 8),
-      status: 'Pending'
+      status: 'Pending',
+      notes: 'Make sure photos are clear and show posters in high resolution.',
+      assignedAt: new Date(),
+      totalDurationMs: 0,
+      delayTimeMs: 0,
+      isOverdue: false,
+      attachments: [],
+      comments: []
     },
     {
       id: 'task-3',
@@ -331,8 +382,16 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       title: 'Deliver Ortho Implants to Gen Hospital',
       description: 'Courier the requested surgical knee orthopedic templates to Dr. Carter.',
       priority: 'High',
+      startDate: new Date(),
       deadline: new Date(Date.now() + 1000 * 60 * 60 * 2),
-      status: 'Pending'
+      status: 'Pending',
+      notes: 'Check template labels before departing distribution hub.',
+      assignedAt: new Date(),
+      totalDurationMs: 0,
+      delayTimeMs: 0,
+      isOverdue: false,
+      attachments: [],
+      comments: []
     }
   ]);
 
@@ -444,6 +503,130 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       localStorage.setItem('field_tracker_demo_mode', String(isDemoMode));
     }
   }, [isDemoMode]);
+
+  const socketRef = useRef<any>(null);
+
+  // Helper to fetch tasks from REST API
+  const refreshTasks = async () => {
+    if (isDemoMode) return;
+    const token = getAccessToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch('/api/tasks', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const parsed = data.map((t: any) => ({
+          ...t,
+          id: t._id,
+          startDate: new Date(t.startDate),
+          deadline: new Date(t.deadline),
+          assignedAt: new Date(t.assignedAt),
+          createdAt: new Date(t.createdAt),
+          updatedAt: new Date(t.updatedAt),
+          completedAt: t.completedAt ? new Date(t.completedAt) : undefined,
+          startedAt: t.startedAt ? new Date(t.startedAt) : undefined,
+          pausedAt: t.pausedAt ? new Date(t.pausedAt) : undefined
+        }));
+        setTasks(parsed);
+      }
+    } catch (err) {
+      console.error('Error fetching tasks from backend:', err);
+    }
+  };
+
+  // Helper to fetch task analytics
+  const refreshTaskAnalytics = async () => {
+    if (isDemoMode) return;
+    const token = getAccessToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch('/api/tasks/analytics', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTaskAnalytics(data);
+      }
+    } catch (err) {
+      console.error('Error fetching task analytics:', err);
+    }
+  };
+
+  // Initialize Socket.io and load tasks when currentUser changes
+  useEffect(() => {
+    if (isDemoMode) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
+
+    if (!currentUser) return;
+
+    refreshTasks();
+    refreshTaskAnalytics();
+
+    const token = getAccessToken();
+    const socket = socketIO(window.location.origin || 'http://localhost:3000', {
+      auth: { token },
+      autoConnect: true
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('🔌 Connected to Socket.io!');
+      socket.emit('join-tenant', currentUser.organizationId);
+    });
+
+    socket.on('task-created', (data: { task: any; log: any }) => {
+      const parsedTask = {
+        ...data.task,
+        id: data.task._id,
+        startDate: new Date(data.task.startDate),
+        deadline: new Date(data.task.deadline),
+        assignedAt: new Date(data.task.assignedAt),
+        createdAt: new Date(data.task.createdAt),
+        updatedAt: new Date(data.task.updatedAt)
+      };
+      setTasks(prev => {
+        if (prev.some(t => t.id === parsedTask.id)) return prev;
+        return [parsedTask, ...prev];
+      });
+      refreshTaskAnalytics();
+    });
+
+    socket.on('task-updated', (data: { task: any; log: any }) => {
+      const parsedTask = {
+        ...data.task,
+        id: data.task._id,
+        startDate: new Date(data.task.startDate),
+        deadline: new Date(data.task.deadline),
+        assignedAt: new Date(data.task.assignedAt),
+        createdAt: new Date(data.task.createdAt),
+        updatedAt: new Date(data.task.updatedAt),
+        completedAt: data.task.completedAt ? new Date(data.task.completedAt) : undefined,
+        startedAt: data.task.startedAt ? new Date(data.task.startedAt) : undefined,
+        pausedAt: data.task.pausedAt ? new Date(data.task.pausedAt) : undefined
+      };
+      setTasks(prev => prev.map(t => (t.id === parsedTask.id ? parsedTask : t)));
+      refreshTaskAnalytics();
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [currentUser, isDemoMode]);
 
   // Auto-start ALL employee shifts in Demo mode so the map shows all live locations on cold load
   const autoStartedRef = useRef(false);
@@ -1399,21 +1582,246 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // ADMIN OPERATIONS
-  const assignTask = (newTask: Omit<Task, 'id' | 'status' | 'employeeName'>) => {
-    const employee = employees.find(e => e.id === newTask.employeeId);
-    const taskRecord: Task = {
-      ...newTask,
-      id: `task-${Date.now()}`,
-      employeeName: employee ? employee.name : 'Unknown',
-      status: 'Pending'
-    };
-    setTasks(prev => [taskRecord, ...prev]);
+  const assignTask = async (newTask: { title: string; description: string; assignedEmployeeId: string; priority: 'High' | 'Medium' | 'Low'; startDate: Date; deadline: Date; notes: string; location?: { lat: number; lng: number } }) => {
+    const employee = employees.find(e => e.id === newTask.assignedEmployeeId);
+    const employeeName = employee ? employee.name : 'Unknown';
+
+    if (isDemoMode) {
+      const taskRecord: Task = {
+        id: `task-${Date.now()}`,
+        employeeId: newTask.assignedEmployeeId,
+        employeeName,
+        title: newTask.title,
+        description: newTask.description,
+        priority: newTask.priority,
+        startDate: new Date(newTask.startDate),
+        deadline: new Date(newTask.deadline),
+        status: 'Pending',
+        notes: newTask.notes,
+        assignedAt: new Date(),
+        totalDurationMs: 0,
+        delayTimeMs: 0,
+        isOverdue: false,
+        location: newTask.location,
+        attachments: [],
+        comments: []
+      };
+      setTasks(prev => [taskRecord, ...prev]);
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newTask)
+      });
+      if (res.ok) {
+        await refreshTasks();
+        await refreshTaskAnalytics();
+      }
+    } catch (err) {
+      console.error('Error assigning task:', err);
+    }
   };
 
-  const completeTask = (taskId: string) => {
-    setTasks(prev =>
-      prev.map(t => (t.id === taskId ? { ...t, status: 'Completed', completedAt: new Date() } : t))
-    );
+  const completeTask = async (taskId: string) => {
+    if (isDemoMode) {
+      setTasks(prev =>
+        prev.map(t => (t.id === taskId ? { ...t, status: 'Completed', completedAt: new Date() } : t))
+      );
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'Completed' })
+      });
+      if (res.ok) {
+        await refreshTasks();
+        await refreshTaskAnalytics();
+      }
+    } catch (err) {
+      console.error('Error completing task:', err);
+    }
+  };
+
+  const updateTaskStatus = async (taskId: string, status: 'Pending' | 'Started' | 'Paused' | 'Completed', notes?: string) => {
+    if (isDemoMode) {
+      setTasks(prev =>
+        prev.map(t => {
+          if (t.id !== taskId) return t;
+          const now = new Date();
+          const updated = { ...t, status };
+          
+          if (status === 'Started') {
+            updated.startedAt = now;
+          } else if (status === 'Paused') {
+            updated.pausedAt = now;
+            if (t.startedAt) {
+              updated.totalDurationMs += now.getTime() - new Date(t.startedAt).getTime();
+            }
+          } else if (status === 'Completed') {
+            updated.completedAt = now;
+            if (t.status === 'Started' && t.startedAt) {
+              updated.totalDurationMs += now.getTime() - new Date(t.startedAt).getTime();
+            }
+          }
+          if (notes !== undefined) updated.notes = notes;
+          return updated;
+        })
+      );
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status, notes })
+      });
+      if (res.ok) {
+        await refreshTasks();
+        await refreshTaskAnalytics();
+      }
+    } catch (err) {
+      console.error('Error updating task status:', err);
+    }
+  };
+
+  const addTaskComment = async (taskId: string, text: string) => {
+    if (isDemoMode) {
+      setTasks(prev =>
+        prev.map(t => {
+          if (t.id !== taskId) return t;
+          const newComment = {
+            id: new Date().getTime().toString(),
+            authorName: currentUser?.email || 'Demo Operative',
+            authorId: currentUser?.employeeId || 'demo-actor',
+            text,
+            createdAt: new Date()
+          };
+          return {
+            ...t,
+            comments: [...t.comments, newComment]
+          };
+        })
+      );
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ text })
+      });
+      if (res.ok) {
+        await refreshTasks();
+        await refreshTaskAnalytics();
+      }
+    } catch (err) {
+      console.error('Error adding task comment:', err);
+    }
+  };
+
+  const addTaskAttachment = async (taskId: string, fileName: string, fileUrl: string) => {
+    if (isDemoMode) {
+      setTasks(prev =>
+        prev.map(t => {
+          if (t.id !== taskId) return t;
+          const newAttachment = {
+            fileName,
+            fileUrl,
+            uploadedAt: new Date()
+          };
+          return {
+            ...t,
+            attachments: [...t.attachments, newAttachment]
+          };
+        })
+      );
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/attachments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ fileName, fileUrl })
+      });
+      if (res.ok) {
+        await refreshTasks();
+        await refreshTaskAnalytics();
+      }
+    } catch (err) {
+      console.error('Error adding task attachment:', err);
+    }
+  };
+
+  const fetchTaskLogs = async (taskId: string): Promise<any[]> => {
+    if (isDemoMode) {
+      return [
+        {
+          taskId,
+          organizationId: 'org-fti',
+          employeeId: 'admin-seed',
+          employeeName: 'HQ System',
+          action: 'Created',
+          details: 'Task created and assigned.',
+          timestamp: new Date(Date.now() - 3600000)
+        }
+      ];
+    }
+
+    const token = getAccessToken();
+    if (!token) return [];
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/logs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.error('Error fetching task logs:', err);
+    }
+    return [];
   };
 
   const addGeofence = (newGf: Omit<Geofence, 'id'>) => {
@@ -1701,6 +2109,11 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         uploadVoiceNote,
         injectGPSPing,
         assignTask,
+        updateTaskStatus,
+        addTaskComment,
+        addTaskAttachment,
+        fetchTaskLogs,
+        taskAnalytics,
         draftTaskLocation,
         setDraftTaskLocation,
         completeTask,

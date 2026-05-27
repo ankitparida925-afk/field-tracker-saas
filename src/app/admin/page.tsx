@@ -7,6 +7,8 @@ import { useAppState } from '../../context/AppState';
 import { AnalyticsPanel } from '../../components/AnalyticsPanel';
 import { DeviceSimulator } from '../../components/DeviceSimulator';
 import { ChatBot } from '../../components/ChatBot';
+import { TaskBoard } from '../../components/TaskBoard';
+import { TaskAnalytics } from '../../components/TaskAnalytics';
 import {
   Activity,
   MapPin,
@@ -57,6 +59,7 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [directoryFilter, setDirectoryFilter] = React.useState<'all' | 'active'>('all');
   const [sessionLabel, setSessionLabel] = React.useState('');
+  const [workspaceTab, setWorkspaceTab] = React.useState<'map' | 'tasks' | 'analytics'>('map');
 
   React.useEffect(() => {
     setMounted(true);
@@ -314,19 +317,57 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* WORKSPACE SECTOR SWITCHER */}
+        <div className="flex justify-start border-b border-white/5 pb-2 mb-2 select-none">
+          <div className="flex gap-6">
+            <button
+              onClick={() => setWorkspaceTab('map')}
+              className={`pb-2 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all cursor-pointer ${
+                workspaceTab === 'map' ? 'border-amber-500 text-amber-500' : 'border-transparent text-stone-500 hover:text-stone-300'
+              }`}
+            >
+              🗺️ Field Map & Telemetry
+            </button>
+            <button
+              onClick={() => setWorkspaceTab('tasks')}
+              className={`pb-2 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all cursor-pointer ${
+                workspaceTab === 'tasks' ? 'border-amber-500 text-amber-500' : 'border-transparent text-stone-500 hover:text-stone-300'
+              }`}
+            >
+              📋 Tasks Kanban Board
+            </button>
+            <button
+              onClick={() => setWorkspaceTab('analytics')}
+              className={`pb-2 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all cursor-pointer ${
+                workspaceTab === 'analytics' ? 'border-amber-500 text-amber-500' : 'border-transparent text-stone-500 hover:text-stone-300'
+              }`}
+            >
+              📊 Productivity Analytics
+            </button>
+          </div>
+        </div>
+
         {/* WORKSPACE DOUBLE COLUMN LAYOUT */}
         <section className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
           
-          {/* LEFT & CENTER COLUMN (Live Map & Analytics Console) */}
+          {/* LEFT & CENTER COLUMN (Live Map & Analytics Console / Tasks boards) */}
           <div className="xl:col-span-2 space-y-6">
             
-            {/* Live Leaflet Map Container */}
-            <div className="glass-panel overflow-hidden rounded-2xl relative h-[350px] md:h-[500px] w-full" style={{ padding: 0 }}>
-              <LiveMap />
-            </div>
+            {workspaceTab === 'map' && (
+              <>
+                {/* Live Leaflet Map Container */}
+                <div className="glass-panel overflow-hidden rounded-2xl relative h-[350px] md:h-[500px] w-full" style={{ padding: 0 }}>
+                  <LiveMap />
+                </div>
 
-            {/* Spatial analytics subpanels & charts console */}
-            <AnalyticsPanel />
+                {/* Spatial analytics subpanels & charts console */}
+                <AnalyticsPanel />
+              </>
+            )}
+
+            {workspaceTab === 'tasks' && <TaskBoard />}
+
+            {workspaceTab === 'analytics' && <TaskAnalytics />}
 
           </div>
 

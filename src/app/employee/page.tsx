@@ -7,7 +7,7 @@ import {
   MapPin, LogOut, Navigation, Battery, Zap, Wifi, WifiOff,
   Clock, CheckCircle, AlertTriangle, Play, Square, Activity,
   User, Building, Radio, ClipboardList, Navigation2, Lock,
-  Eye, EyeOff, Sun, Moon
+  Eye, EyeOff, Sun, Moon, Pause, Paperclip
 } from 'lucide-react';
 
 const GPS_INTERVAL_MS = 5000; // Ping every 5 seconds
@@ -26,7 +26,8 @@ export default function EmployeePage() {
     employees, activeTracking,
     startShift, endShift, injectGPSPing, setGPSSource,
     alerts, tasks, completeTask, setupEmployeePassword,
-    theme, toggleTheme
+    theme, toggleTheme,
+    updateTaskStatus, addTaskComment, addTaskAttachment
   } = useAppState();
 
   const router = useRouter();
@@ -430,29 +431,128 @@ export default function EmployeePage() {
                       <h4 className="text-stone-900 font-bold text-sm">{t.title}</h4>
                       <p className="text-stone-500 text-xs mt-0.5">{t.description}</p>
                     </div>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${t.priority === 'High' ? 'bg-red-100 text-red-600' : 'bg-stone-200 text-stone-600'}`}>
-                      {t.priority}
-                    </span>
+                    <div className="flex flex-col gap-1 items-end">
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${t.priority === 'High' ? 'bg-red-100 text-red-600' : 'bg-stone-200 text-stone-600'}`}>
+                        {t.priority}
+                      </span>
+                      <span className={`text-[8.5px] font-bold px-2 py-0.5 rounded mt-1 uppercase ${
+                        t.status === 'Pending' ? 'bg-stone-100 text-stone-500' :
+                        t.status === 'Started' ? 'bg-emerald-100 text-emerald-600' :
+                        t.status === 'Paused' ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'
+                      }`}>
+                        {t.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-stone-200">
-                    {t.location && (
+
+                  {/* Notes / Special instructions */}
+                  {t.notes && (
+                    <p className="text-[10px] text-amber-600 bg-amber-50 p-2 rounded-lg leading-relaxed mt-1 text-left">
+                      💡 <b>HQ Note:</b> {t.notes}
+                    </p>
+                  )}
+
+                  {/* Comments section inside Mobile UI */}
+                  {t.comments && t.comments.length > 0 && (
+                    <div className="space-y-1 mt-1 text-left border-t border-stone-100 pt-2">
+                      <p className="text-[8.5px] text-stone-400 font-extrabold uppercase tracking-wide">Recent Thread Notes</p>
+                      {t.comments.slice(-2).map((c, i) => (
+                        <div key={i} className="text-[10px] bg-stone-100 p-1.5 rounded leading-relaxed text-stone-600">
+                          <b>{c.authorName.split('@')[0]}:</b> {c.text}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Actions row */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-stone-200">
+                    {t.location && t.status !== 'Completed' && (
                       <button 
                         onClick={() => {
                           const origin = tracking && tracking.status !== 'offline' ? `&origin=${tracking.latitude},${tracking.longitude}` : '';
                           window.open(`https://www.google.com/maps/dir/?api=1${origin}&destination=${t.location!.lat},${t.location!.lng}`, '_blank');
                         }}
-                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition shadow-sm"
+                        className="flex-grow bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1 transition shadow-sm cursor-pointer"
                       >
                         <Navigation2 size={12}/> Navigate {distStr && `(${distStr})`}
                       </button>
                     )}
-                    <button 
-                      onClick={() => completeTask(t.id)}
-                      className="flex-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-200 text-[10px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition"
-                    >
-                      <CheckCircle size={12}/> Complete
-                    </button>
+
+                    {t.status === 'Pending' && (
+                      <button 
+                        onClick={() => updateTaskStatus(t.id, 'Started')}
+                        className="flex-grow bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1 transition cursor-pointer"
+                      >
+                        <Play size={11}/> Start Task
+                      </button>
+                    )}
+
+                    {t.status === 'Started' && (
+                      <>
+                        <button 
+                          onClick={() => updateTaskStatus(t.id, 'Paused')}
+                          className="flex-grow bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1 transition cursor-pointer"
+                        >
+                          <Pause size={11}/> Pause
+                        </button>
+                        <button 
+                          onClick={() => updateTaskStatus(t.id, 'Completed')}
+                          className="flex-grow bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1 transition cursor-pointer"
+                        >
+                          <CheckCircle size={11}/> Complete
+                        </button>
+                      </>
+                    )}
+
+                    {t.status === 'Paused' && (
+                      <button 
+                        onClick={() => updateTaskStatus(t.id, 'Started')}
+                        className="flex-grow bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold py-1.5 px-3 rounded flex items-center justify-center gap-1 transition cursor-pointer"
+                      >
+                        <Play size={11}/> Resume
+                      </button>
+                    )}
+
+                    {t.status === 'Completed' && (
+                      <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-3 py-1.5 rounded flex items-center gap-1 flex-grow justify-center">
+                        <CheckCircle size={12} /> Completed successfully!
+                      </span>
+                    )}
                   </div>
+
+                  {/* Comment & upload inputs inside employee mobile view */}
+                  {t.status !== 'Completed' && (
+                    <div className="mt-2 pt-2 border-t border-stone-100 flex gap-1">
+                      <input 
+                        type="text"
+                        placeholder="Add quick note..."
+                        id={`mob-comment-${t.id}`}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            const val = (e.target as HTMLInputElement).value;
+                            if (val.trim()) {
+                              addTaskComment(t.id, val.trim());
+                              (e.target as HTMLInputElement).value = '';
+                              alert('Note posted successfully!');
+                            }
+                          }
+                        }}
+                        className="flex-grow bg-stone-50 border border-stone-200 text-[10px] pl-2.5 py-1.5 rounded outline-none"
+                      />
+                      <button
+                        onClick={() => {
+                          const fileName = prompt('Enter proof image file name (e.g. clinic-cooler.jpg):', 'clinic-cooler.jpg');
+                          if (fileName) {
+                            addTaskAttachment(t.id, fileName, 'https://example.com/proofs/clinic-cooler.jpg');
+                          }
+                        }}
+                        title="Upload proof photo"
+                        className="bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-500 p-1.5 rounded flex items-center justify-center cursor-pointer transition"
+                      >
+                        <Paperclip size={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

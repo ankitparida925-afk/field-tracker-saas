@@ -52,12 +52,16 @@ const nextConfig: NextConfig = {
       : [];
   },
 
-  // Proxy API requests to Express Backend on Port 5000
+  // Proxy API requests and Socket.io connections to Express Backend on Port 5000
   async rewrites() {
     return [
       {
         source: '/api/:path*',
         destination: 'http://localhost:5000/api/:path*',
+      },
+      {
+        source: '/socket.io/:path*',
+        destination: 'http://localhost:5000/socket.io/:path*',
       },
     ];
   },

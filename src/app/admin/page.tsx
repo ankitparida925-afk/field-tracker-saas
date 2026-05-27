@@ -139,76 +139,91 @@ export default function AdminPage() {
 
   return (
     <div className="flex-grow flex flex-col min-h-screen">
-      
       {/* ENTERPRISE BRANDING BAR */}
-      <header className="bg-stone-950/80 backdrop-blur border-b border-white/5 py-4 px-6 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-            <span className="bg-amber-600 p-2.5 rounded-xl border border-amber-400/20 shadow-lg shadow-amber-600/25 flex items-center justify-center text-white">
-              <Activity size={20} className="animate-pulse" />
-            </span>
-            <div>
-              <h1 className="text-lg font-black tracking-tight text-white flex items-center gap-1.5">
-                FieldTracker <span className="bg-amber-500/10 text-amber-400 text-[10px] px-2 py-0.5 rounded-full font-black border border-amber-500/30">AI PRO</span>
-              </h1>
-              <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Realtime Field Force & Productivity SaaS</p>
+      <header className="bg-stone-950/80 backdrop-blur border-b border-white/5 py-4 px-4 md:px-6 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-center gap-4">
+          
+          {/* Logo Section */}
+          <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-start">
+            <div className="flex items-center gap-3">
+              <span className="bg-amber-600 p-2.5 rounded-xl border border-amber-400/20 shadow-lg shadow-amber-600/25 flex items-center justify-center text-white">
+                <Activity size={20} className="animate-pulse" />
+              </span>
+              <div>
+                <h1 className="text-lg font-black tracking-tight text-white flex items-center gap-1.5">
+                  FieldTracker <span className="bg-amber-500/10 text-amber-400 text-[10px] px-2 py-0.5 rounded-full font-black border border-amber-500/30">AI PRO</span>
+                </h1>
+                <p className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">Realtime Field Force & Productivity SaaS</p>
+              </div>
+            </div>
+            
+            {/* Mobile quick indicators */}
+            <div className="flex lg:hidden items-center gap-2">
+              {isSpoofAlarmActive && (
+                <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping" title="Spoof Alarm" />
+              )}
+              {isDemoMode ? (
+                <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-md font-bold">DEMO</span>
+              ) : (
+                <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-md font-bold">PROD</span>
+              )}
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 justify-end">
+          {/* Action Row */}
+          <div className="flex flex-wrap items-center gap-2.5 md:gap-4 justify-center lg:justify-end w-full lg:w-auto">
             {/* Spoof Siren indicator */}
             {isSpoofAlarmActive && (
               <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10.5px] px-3.5 py-1.5 rounded-xl font-bold animate-pulse flex items-center gap-1.5">
-                <AlertTriangle size={13} className="animate-bounce" /> SPOOF ATTEMPT BLOCKADE ACTIVE
+                <AlertTriangle size={13} className="animate-bounce" /> SPOOF ALERT
               </div>
             )}
 
             {/* Console Mode Toggle switch */}
-            <div className="bg-stone-900 p-1 rounded-xl border border-white/10 flex shadow-inner select-none">
+            <div className="bg-stone-900 p-1 rounded-xl border border-white/10 flex shadow-inner select-none text-xs">
               <button
                 onClick={() => setIsDemoMode(true)}
-                className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                className={`px-2.5 py-1 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${
                   isDemoMode
                     ? 'bg-amber-600 text-white shadow shadow-amber-600/30'
                     : 'text-stone-400 hover:text-stone-200'
                 }`}
               >
-                Demo Sandbox
+                Demo
               </button>
               <button
                 onClick={() => setIsDemoMode(false)}
-                className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                className={`px-2.5 py-1 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer ${
                   !isDemoMode
                     ? 'bg-emerald-600 text-white shadow shadow-emerald-600/30'
                     : 'text-stone-400 hover:text-stone-200'
                 }`}
               >
-                Enterprise Prod
+                Prod
               </button>
             </div>
 
-            <div className="bg-stone-900 border border-white/10 rounded-xl px-3 py-1.5 flex items-center gap-2 text-xs">
-              <Building size={14} className="text-amber-400" />
-              <span className="text-stone-300 font-semibold">{currentUser.organizationName || 'FieldTracker Innovations+'}</span>
-              <span className="text-[9px] bg-stone-800 text-stone-400 px-1.5 py-0.5 rounded uppercase font-bold">Manager</span>
+            {/* Org badge */}
+            <div className="bg-stone-900 border border-white/10 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 text-[11px] max-w-[150px] md:max-w-none">
+              <Building size={13} className="text-amber-400 flex-shrink-0" />
+              <span className="text-stone-300 font-semibold truncate">{currentUser.organizationName || 'FieldTracker'}</span>
             </div>
 
             {/* JWT Session Timer */}
             {sessionLabel && (
-              <div className="bg-stone-900 border border-emerald-500/20 rounded-xl px-3 py-1.5 flex items-center gap-1.5 text-xs" title="JWT session expires in">
-                <Shield size={12} className="text-emerald-400" />
+              <div className="bg-stone-900 border border-emerald-500/20 rounded-xl px-2.5 py-1.5 flex items-center gap-1 text-[11px]" title="JWT session expires in">
+                <Shield size={11} className="text-emerald-400 flex-shrink-0" />
                 <span className="text-emerald-400 font-bold font-mono">{sessionLabel}</span>
-                <span className="text-stone-600 text-[9px]">SESSION</span>
               </div>
             )}
 
             {/* Theme Mode Toggle */}
             <button
               onClick={toggleTheme}
-              className="bg-stone-900 hover:bg-stone-800 border border-white/10 hover:border-amber-500/30 text-stone-400 hover:text-white p-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+              className="bg-stone-900 hover:bg-stone-800 border border-white/10 hover:border-amber-500/30 text-stone-400 hover:text-white p-2 rounded-xl text-xs font-bold transition flex items-center justify-center active:scale-95 cursor-pointer"
               title="Switch Color Theme"
             >
-              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+              {theme === 'light' ? <Moon size={13} /> : <Sun size={13} />}
             </button>
 
             {/* Logout button */}
@@ -217,11 +232,11 @@ export default function AdminPage() {
                 logout();
                 router.replace('/');
               }}
-              className="bg-stone-900 hover:bg-rose-900 border border-white/10 hover:border-rose-500 text-stone-400 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
-              title="Sign Out of Dashboard"
+              className="bg-stone-900 hover:bg-rose-900 border border-white/10 hover:border-rose-500 text-stone-400 hover:text-white px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 active:scale-95 cursor-pointer"
+              title="Sign Out"
             >
-              <LogOut size={13} />
-              <span>Log Out</span>
+              <LogOut size={12} className="flex-shrink-0" />
+              <span className="hidden sm:inline">Log Out</span>
             </button>
           </div>
         </div>
@@ -318,8 +333,8 @@ export default function AdminPage() {
         )}
 
         {/* WORKSPACE SECTOR SWITCHER */}
-        <div className="flex justify-start border-b border-white/5 pb-2 mb-2 select-none">
-          <div className="flex gap-6">
+        <div className="flex justify-start border-b border-white/5 pb-2 mb-2 select-none overflow-x-auto scrollbar-none">
+          <div className="flex gap-4 md:gap-6 whitespace-nowrap">
             <button
               onClick={() => setWorkspaceTab('map')}
               className={`pb-2 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all cursor-pointer ${

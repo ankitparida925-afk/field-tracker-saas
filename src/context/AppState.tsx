@@ -118,6 +118,18 @@ export interface Task {
   comments: TaskComment[];
 }
 
+export interface Message {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'admin' | 'employee';
+  recipientId: string;
+  organizationId: string;
+  text: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 interface Geofence {
   id: string;
   employeeId?: string; // If specific to an employee, otherwise global
@@ -183,6 +195,9 @@ interface AppStateContextType {
   clearAllAlerts: () => void;
   playbackSpeed: number;
   setPlaybackSpeed: (speed: number) => void;
+  messages: Message[];
+  sendMessage: (recipientId: string, text: string) => Promise<void>;
+  markMessageAsRead: (messageId: string) => Promise<void>;
 }
 
 
@@ -331,6 +346,7 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeShiftIndex, setActiveShiftIndex] = useState<{ [key: string]: number }>({});
   const [insideGeofences, setInsideGeofences] = useState<{ [key: string]: { [geoId: string]: boolean } }>({});
+  const [messages, setMessages] = useState<Message[]>([]);
 
   // Collections
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -560,8 +576,85 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const refreshMessages = async () => {
+    if (isDemoMode) {
+      setMessages(prev => {
+        if (prev.length > 0) return prev;
+        return [
+          {
+            id: 'msg-seed-1',
+            senderId: 'emp-2', // Sarah
+            senderName: 'sarah',
+            senderRole: 'employee',
+            recipientId: 'admin',
+            organizationId: 'org-fti',
+            text: 'Hey team, I have reached the pharmaceutical storage clinic geofence and starting the temperature audit now!',
+            isRead: true,
+            createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString() // 3 hrs ago
+          },
+          {
+            id: 'msg-seed-2',
+            senderId: 'admin-seed',
+            senderName: 'admin',
+            senderRole: 'admin',
+            recipientId: 'emp-2',
+            organizationId: 'org-fti',
+            text: 'Excellent work Sarah. Please make sure to take a geotagged proof image once you verify the refrigeration levels.',
+            isRead: true,
+            createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() // 2 hrs ago
+          },
+          {
+            id: 'msg-seed-3',
+            senderId: 'emp-1', // Rahul
+            senderName: 'rahul',
+            senderRole: 'employee',
+            recipientId: 'admin',
+            organizationId: 'org-fti',
+            text: 'Shift started! Checking coordinates ping accuracy.',
+            isRead: false,
+            createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString() // 15 mins ago
+          }
+        ];
+      });
+      return;
+    }
+    const token = getAccessToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch('/api/messages', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const parsed = data.map((m: any) => ({
+          id: m._id,
+          senderId: m.senderId,
+          senderName: m.senderName,
+          senderRole: m.senderRole,
+          recipientId: m.recipientId,
+          organizationId: m.organizationId,
+          text: m.text,
+          isRead: m.isRead,
+          createdAt: m.createdAt
+        }));
+        setMessages(parsed);
+      }
+    } catch (err) {
+      console.error('Error fetching messages from backend:', err);
+    }
+  };
+
   // Initialize Socket.io and load tasks when currentUser changes
   useEffect(() => {
+    if (currentUser) {
+      refreshTasks();
+      refreshTaskAnalytics();
+      refreshMessages();
+    }
+
     if (isDemoMode) {
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -571,9 +664,6 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     if (!currentUser) return;
-
-    refreshTasks();
-    refreshTaskAnalytics();
 
     const token = getAccessToken();
     const socket = socketIO(window.location.origin || 'http://localhost:3000', {
@@ -620,6 +710,30 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       };
       setTasks(prev => prev.map(t => (t.id === parsedTask.id ? parsedTask : t)));
       refreshTaskAnalytics();
+    });
+
+    socket.on('message-received', (msg: any) => {
+      const parsedMsg: Message = {
+        id: msg._id,
+        senderId: msg.senderId,
+        senderName: msg.senderName,
+        senderRole: msg.senderRole,
+        recipientId: msg.recipientId,
+        organizationId: msg.organizationId,
+        text: msg.text,
+        isRead: msg.isRead,
+        createdAt: msg.createdAt
+      };
+      setMessages(prev => {
+        if (prev.some(m => m.id === parsedMsg.id)) return prev;
+        return [...prev, parsedMsg];
+      });
+    });
+
+    socket.on('message-read', (data: { messageId: string }) => {
+      setMessages(prev =>
+        prev.map(m => (m.id === data.messageId ? { ...m, isRead: true } : m))
+      );
     });
 
     return () => {
@@ -1844,6 +1958,86 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setAlerts([]);
   };
 
+  const sendMessage = async (recipientId: string, text: string) => {
+    if (isDemoMode) {
+      const mockMsg: Message = {
+        id: `msg-sim-${Date.now()}`,
+        senderId: currentUser?.employeeId || currentUser?.id || 'admin-seed',
+        senderName: currentUser?.email ? currentUser.email.split('@')[0] : 'admin',
+        senderRole: currentUser?.role === 'admin' ? 'admin' : 'employee',
+        recipientId,
+        organizationId: currentUser?.organizationId || 'org-fti',
+        text,
+        isRead: false,
+        createdAt: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, mockMsg]);
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ recipientId, text })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const parsed: Message = {
+          id: data._id,
+          senderId: data.senderId,
+          senderName: data.senderName,
+          senderRole: data.senderRole,
+          recipientId: data.recipientId,
+          organizationId: data.organizationId,
+          text: data.text,
+          isRead: data.isRead,
+          createdAt: data.createdAt
+        };
+        setMessages(prev => {
+          if (prev.some(m => m.id === parsed.id)) return prev;
+          return [...prev, parsed];
+        });
+      }
+    } catch (err) {
+      console.error('Error sending message:', err);
+    }
+  };
+
+  const markMessageAsRead = async (messageId: string) => {
+    if (isDemoMode) {
+      setMessages(prev =>
+        prev.map(m => (m.id === messageId ? { ...m, isRead: true } : m))
+      );
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/messages/${messageId}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        setMessages(prev =>
+          prev.map(m => (m.id === messageId ? { ...m, isRead: true } : m))
+        );
+      }
+    } catch (err) {
+      console.error('Error marking message as read:', err);
+    }
+  };
+
   // GPS TICK LOGIC
   const simulateGPSPing = (employee: EmployeeRoute, pointIndex: number, currentBattery: number) => {
     const point = employee.points[pointIndex];
@@ -2122,7 +2316,10 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         resolveAlert,
         clearAllAlerts,
         playbackSpeed,
-        setPlaybackSpeed
+        setPlaybackSpeed,
+        messages,
+        sendMessage,
+        markMessageAsRead
       }}
 
     >

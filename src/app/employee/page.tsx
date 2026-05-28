@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppState } from '../../context/AppState';
+import { NetflixMessenger } from '../../components/NetflixMessenger';
 import {
   MapPin, LogOut, Navigation, Battery, Zap, Wifi, WifiOff,
   Clock, CheckCircle, AlertTriangle, Play, Square, Activity,
@@ -963,6 +964,7 @@ export default function EmployeePage() {
         </div>
       )}
 
+      <NetflixMessenger />
       </div>
 
       <style>{`@keyframes ep-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>

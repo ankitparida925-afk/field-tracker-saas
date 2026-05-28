@@ -7,6 +7,7 @@ import { useAppState } from '../../context/AppState';
 import { AnalyticsPanel } from '../../components/AnalyticsPanel';
 import { DeviceSimulator } from '../../components/DeviceSimulator';
 import { ChatBot } from '../../components/ChatBot';
+import { NetflixMessenger } from '../../components/NetflixMessenger';
 import { TaskBoard } from '../../components/TaskBoard';
 import { TaskAnalytics } from '../../components/TaskAnalytics';
 import {
@@ -596,6 +597,7 @@ export default function AdminPage() {
 
       {/* FLOATING AI ASSISTANT CHATBOT */}
       <ChatBot />
+      <NetflixMessenger />
 
       {/* FOOTER */}
       <footer className="border-t border-white/5 bg-stone-950/60 py-6 px-6 mt-12 text-center text-xs text-stone-500 font-semibold max-w-7xl mx-auto w-full">

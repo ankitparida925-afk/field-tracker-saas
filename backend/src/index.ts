@@ -11,6 +11,7 @@ import superadminRoutes from './routes/superadmin';
 import syncRoutes from './routes/sync';
 import geocodeRoutes from './routes/geocode';
 import tasksRoutes from './routes/tasks';
+import messagesRoutes from './routes/messages';
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use('/api/superadmin', superadminRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/geocode', geocodeRoutes);
 app.use('/api/tasks', tasksRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

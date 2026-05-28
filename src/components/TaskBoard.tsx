@@ -579,10 +579,19 @@ export const TaskBoard: React.FC = () => {
                       href={att.fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-stone-900 hover:bg-stone-850 border border-white/5 p-2.5 rounded-xl flex items-center justify-between text-[10.5px] font-bold text-stone-300 hover:text-white transition"
+                      className="bg-stone-900 hover:bg-stone-850 border border-white/5 p-2.5 rounded-xl flex flex-col items-start gap-2 text-[10.5px] font-bold text-stone-300 hover:text-white transition w-full"
                     >
-                      <span className="truncate pr-2">{att.fileName}</span>
-                      <ArrowUpRight size={13} className="text-stone-500 flex-shrink-0" />
+                      <div className="flex justify-between items-center w-full">
+                        <span className="truncate pr-2">{att.fileName}</span>
+                        <ArrowUpRight size={13} className="text-stone-500 flex-shrink-0" />
+                      </div>
+                      {att.fileUrl.startsWith('data:image/') && (
+                        <img 
+                          src={att.fileUrl} 
+                          alt={att.fileName} 
+                          className="w-full h-24 object-cover rounded-lg border border-white/10 mt-1"
+                        />
+                      )}
                     </a>
                   ))}
                 </div>

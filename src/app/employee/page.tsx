@@ -202,6 +202,220 @@ export default function EmployeePage() {
     }
   };
 
+  const [geotagLoading, setGeotagLoading] = React.useState<string | null>(null);
+  const [activeCameraTaskId, setActiveCameraTaskId] = React.useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
+
+  const startWebcam = async (taskId: string) => {
+    setActiveCameraTaskId(taskId);
+    setGpsError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
+      streamRef.current = stream;
+      // Wait for React to render the modal video element
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 300);
+    } catch (err: any) {
+      console.warn('Webcam not accessible:', err.message);
+      // Fallback: trigger standard folder explorer file upload input
+      setActiveCameraTaskId(null);
+      const fileInput = document.getElementById(`mob-camera-${taskId}`) as HTMLInputElement;
+      fileInput?.click();
+    }
+  };
+
+  const stopWebcam = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setActiveCameraTaskId(null);
+  };
+
+  const captureWebcamPhoto = () => {
+    if (!videoRef.current || !activeCameraTaskId) return;
+
+    setGeotagLoading(activeCameraTaskId);
+    const taskId = activeCameraTaskId;
+    
+    // Acquire current GPS coordinates for secure geotag watermark
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const timestamp = new Date().toLocaleString();
+
+        const video = videoRef.current!;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          setGeotagLoading(null);
+          stopWebcam();
+          return;
+        }
+
+        // Scale to max 1200px
+        const maxDim = 1200;
+        let width = video.videoWidth || 640;
+        let height = video.videoHeight || 480;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw current video frame to canvas
+        ctx.drawImage(video, 0, 0, width, height);
+
+        // Watermark black overlay bar at the bottom
+        const barHeight = Math.max(60, Math.round(height * 0.08));
+        ctx.fillStyle = 'rgba(15, 10, 6, 0.75)'; // dark amber semi-transparent background
+        ctx.fillRect(0, height - barHeight, width, barHeight);
+
+        // Text configuration
+        ctx.fillStyle = '#ffffff';
+        ctx.textBaseline = 'middle';
+        const fontSize = Math.max(12, Math.round(barHeight * 0.28));
+        ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+
+        // Draw location & time text
+        const textX = Math.round(width * 0.04);
+        const line1Y = Math.round(height - barHeight * 0.65);
+        const line2Y = Math.round(height - barHeight * 0.35);
+
+        ctx.fillText(`📍 GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`, textX, line1Y);
+        ctx.fillText(`📅 TIME: ${timestamp}`, textX, line2Y);
+
+        // Convert to Base64 image
+        const base64Data = canvas.toDataURL('image/jpeg', 0.85);
+
+        // Save proof
+        addTaskAttachment(taskId, `cam-proof-${Date.now()}.jpg`, base64Data)
+          .then(() => {
+            alert('Webcam geotagged proof photo captured successfully!');
+          })
+          .catch(err => {
+            console.error(err);
+            alert('Error saving geotagged proof.');
+          })
+          .finally(() => {
+            setGeotagLoading(null);
+            stopWebcam();
+          });
+      },
+      (err) => {
+        setGeotagLoading(null);
+        stopWebcam();
+        alert(`Failed to capture GPS for geotagging: ${err.message}. Geotagged proofs require active location services.`);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  const handleGeotagUpload = async (e: React.ChangeEvent<HTMLInputElement>, taskId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setGeotagLoading(taskId);
+    
+    // 1. Get current GPS Coordinates for secure geotagging
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const timestamp = new Date().toLocaleString();
+
+        // 2. Read File as Data URL
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              setGeotagLoading(null);
+              return;
+            }
+
+            // Downscale dimensions to max 1200px to maintain performant base64 sizes
+            const maxDim = 1200;
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            // Draw original captured image
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Watermark black overlay bar at the bottom
+            const barHeight = Math.max(60, Math.round(height * 0.08));
+            ctx.fillStyle = 'rgba(15, 10, 6, 0.75)'; // dark amber semi-transparent background
+            ctx.fillRect(0, height - barHeight, width, barHeight);
+
+            // Text configuration
+            ctx.fillStyle = '#ffffff';
+            ctx.textBaseline = 'middle';
+            const fontSize = Math.max(12, Math.round(barHeight * 0.28));
+            ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+
+            // Draw location & time text
+            const textX = Math.round(width * 0.04);
+            const line1Y = Math.round(height - barHeight * 0.65);
+            const line2Y = Math.round(height - barHeight * 0.35);
+
+            ctx.fillText(`📍 GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`, textX, line1Y);
+            ctx.fillText(`📅 TIME: ${timestamp}`, textX, line2Y);
+
+            // Convert to Base64 image
+            const base64Data = canvas.toDataURL('image/jpeg', 0.85);
+
+            // Upload proof to state context
+            addTaskAttachment(taskId, file.name, base64Data)
+              .then(() => {
+                alert('Geotagged proof photo uploaded successfully!');
+              })
+              .catch(err => {
+                console.error(err);
+                alert('Error uploading geotagged proof.');
+              })
+              .finally(() => {
+                setGeotagLoading(null);
+              });
+          };
+          img.src = event.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      },
+      (err) => {
+        setGeotagLoading(null);
+        alert(`Failed to capture GPS for geotagging: ${err.message}. Geotagged proofs require active location services.`);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
   // ── Loading ──────────────────────────────────────────────────────────────
   if (!mounted || !currentUser) {
     return (
@@ -539,17 +753,25 @@ export default function EmployeePage() {
                         }}
                         className="flex-grow bg-stone-50 border border-stone-200 text-[10px] pl-2.5 py-1.5 rounded outline-none"
                       />
+                      <input 
+                        type="file"
+                        id={`mob-camera-${t.id}`}
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => handleGeotagUpload(e, t.id)}
+                        className="hidden"
+                      />
                       <button
-                        onClick={() => {
-                          const fileName = prompt('Enter proof image file name (e.g. clinic-cooler.jpg):', 'clinic-cooler.jpg');
-                          if (fileName) {
-                            addTaskAttachment(t.id, fileName, 'https://example.com/proofs/clinic-cooler.jpg');
-                          }
-                        }}
-                        title="Upload proof photo"
-                        className="bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-500 p-1.5 rounded flex items-center justify-center cursor-pointer transition"
+                        onClick={() => startWebcam(t.id)}
+                        disabled={geotagLoading === t.id}
+                        title="Capture geotagged proof photo"
+                        className="bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-500 p-1.5 rounded flex items-center justify-center cursor-pointer transition disabled:opacity-50"
                       >
-                        <Paperclip size={12} />
+                        {geotagLoading === t.id ? (
+                          <div className="w-3.5 h-3.5 border-2 border-stone-400 border-t-amber-500 rounded-full animate-spin" />
+                        ) : (
+                          <Paperclip size={12} />
+                        )}
                       </button>
                     </div>
                   )}
@@ -646,6 +868,63 @@ export default function EmployeePage() {
                 </button>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* WEBCAM CAPTURE OVERLAY MODAL */}
+      {activeCameraTaskId && (
+        <div className="fixed inset-0 z-[3000] bg-stone-950/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-stone-900 border border-amber-500/25 shadow-2xl rounded-2xl w-full max-w-sm p-4 relative space-y-4 animate-in fade-in zoom-in-95 duration-200 text-left">
+            
+            <div className="flex justify-between items-center border-b border-white/5 pb-2.5">
+              <div>
+                <h3 className="text-xs font-black text-stone-100">Live Geotagged Shutter</h3>
+                <p className="text-[9px] text-stone-500 font-extrabold uppercase tracking-widest mt-0.5">Hardware Camera Feed</p>
+              </div>
+              <button 
+                onClick={stopWebcam}
+                className="text-stone-400 hover:text-white transition cursor-pointer text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black aspect-video flex items-center justify-center">
+              <video 
+                ref={videoRef}
+                autoPlay 
+                playsInline 
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute top-2 left-2 bg-stone-950/70 border border-white/10 text-[9px] text-stone-400 font-bold px-2 py-0.5 rounded flex items-center gap-1.5 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> REC FEED
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3.5 justify-between">
+              {/* Fallback to folders link */}
+              <button
+                onClick={() => {
+                  const input = document.getElementById(`mob-camera-${activeCameraTaskId}`) as HTMLInputElement;
+                  input?.click();
+                  stopWebcam();
+                }}
+                className="text-stone-400 hover:text-white text-[10px] font-bold cursor-pointer transition underline"
+              >
+                Upload from folder instead
+              </button>
+
+              {/* Shutter capture button */}
+              <button
+                onClick={captureWebcamPhoto}
+                disabled={geotagLoading === activeCameraTaskId}
+                className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-4 py-2 text-xs font-black transition active:scale-95 cursor-pointer flex items-center gap-1 shadow-md shadow-amber-600/10 disabled:opacity-50"
+              >
+                {geotagLoading === activeCameraTaskId ? 'Watermarking...' : 'Capture Photo'}
+              </button>
+            </div>
+            
           </div>
         </div>
       )}

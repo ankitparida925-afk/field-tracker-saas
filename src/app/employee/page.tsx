@@ -416,6 +416,32 @@ export default function EmployeePage() {
     );
   };
 
+  const [arrivedLoggedTaskIds, setArrivedLoggedTaskIds] = React.useState<string[]>([]);
+
+  // Automatically check-in/log task arrivals when entering 100m proximity
+  React.useEffect(() => {
+    if (!tracking || tracking.status === 'offline' || !employee) return;
+
+    tasks.forEach(t => {
+      if (t.employeeId === employee.id && t.location && t.status !== 'Completed') {
+        const distM = getDistance(tracking.latitude, tracking.longitude, t.location.lat, t.location.lng);
+        
+        // If employee enters 100m client perimeter and hasn't logged arrival yet
+        if (distM <= 100 && !arrivedLoggedTaskIds.includes(t.id)) {
+          setArrivedLoggedTaskIds(prev => [...prev, t.id]);
+          
+          // 1. Post automatic verified note to the task thread
+          const verificationMessage = `📍 Verified Arrival Audit: Employee physically arrived at client perimeter (Coordinates Proximity: ${Math.round(distM)}m away).`;
+          addTaskComment(t.id, verificationMessage)
+            .then(() => {
+              console.log(`Auto proximity log saved for task ${t.id}`);
+            })
+            .catch(err => console.error('Error logging auto-arrival:', err));
+        }
+      }
+    });
+  }, [tracking, tasks, employee, arrivedLoggedTaskIds, addTaskComment]);
+
   // ── Loading ──────────────────────────────────────────────────────────────
   if (!mounted || !currentUser) {
     return (
@@ -634,9 +660,11 @@ export default function EmployeePage() {
             </p>
             {myTasks.map(t => {
               let distStr = '';
+              let isWithinProximity = false;
               if (t.location && tracking && tracking.status !== 'offline') {
                 const distM = getDistance(tracking.latitude, tracking.longitude, t.location.lat, t.location.lng);
                 distStr = distM > 1000 ? `${(distM/1000).toFixed(1)}km away` : `${Math.round(distM)}m away`;
+                isWithinProximity = distM <= 100; // 100m buffer zone
               }
               return (
                 <div key={t.id} className="bg-stone-50 border border-stone-200 rounded-xl p-3 flex flex-col gap-2">
@@ -656,6 +684,12 @@ export default function EmployeePage() {
                       }`}>
                         {t.status}
                       </span>
+                      {isWithinProximity && t.status !== 'Completed' && (
+                        <span className="text-[8.5px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 font-extrabold px-2 py-0.5 rounded uppercase mt-1 animate-pulse flex items-center gap-0.5 shadow-sm shadow-emerald-500/5">
+                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
+                          Reached
+                        </span>
+                      )}
                     </div>
                   </div>
 

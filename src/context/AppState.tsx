@@ -666,9 +666,11 @@ export const AppStateProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!currentUser) return;
 
     const token = getAccessToken();
-    const socket = socketIO(window.location.origin || 'http://localhost:3000', {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+    const socket = socketIO(backendUrl, {
       auth: { token },
-      autoConnect: true
+      autoConnect: true,
+      transports: ['websocket', 'polling']
     });
 
     socketRef.current = socket;
